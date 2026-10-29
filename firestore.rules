@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // No user accounts: the group code is checked in the client, so this is
+    // "keep out casual strangers", not real security. Fine for a friend group.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
