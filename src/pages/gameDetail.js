@@ -1,9 +1,9 @@
 import { doc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { state } from '../store.js';
-import { myId } from '../auth.js';
+import { myId, isEditor } from '../auth.js';
 import { tally, winners } from '../awards.js';
-import { resultOf, fmtStat } from '../stats.js';
+import { resultOf, fmtStat, STAT_KEYS, STAT_LABELS } from '../stats.js';
 import { esc, fmtDate, playerName } from '../util.js';
 
 export function render(root, [gameId]) {
@@ -33,18 +33,18 @@ export function render(root, [gameId]) {
         <div class="big sm">${game.teamScore}–${game.opponentScore}</div>
       </div>
       ${game.notes ? `<p>${esc(game.notes)}</p>` : ''}
-      <div class="row">
+      ${isEditor() ? `<div class="row">
         <a class="btn alt" href="#/games/${game.id}/edit">Edit</a>
         <button class="btn danger" id="del">Delete</button>
-      </div>
+      </div>` : ''}
     </section>
 
     <section class="card">
       <h2>Box score</h2>
       ${rowPlayers.length ? `<div class="scroll"><table class="box">
-        <thead><tr><th>Player</th><th>PTS</th><th>REB</th><th>AST</th></tr></thead>
-        <tbody>${rowPlayers.map((s) => `<tr><td>${esc(s.name)}</td><td>${fmtStat(s.points)}</td><td>${fmtStat(s.rebounds)}</td><td>${fmtStat(s.assists)}</td></tr>`).join('')}</tbody>
-      </table></div><p class="muted">— = not tracked</p>` : '<p class="muted">No box score entered. Use Edit to add one.</p>'}
+        <thead><tr><th>Player</th>${STAT_KEYS.map((k) => `<th>${STAT_LABELS[k]}</th>`).join('')}</tr></thead>
+        <tbody>${rowPlayers.map((s) => `<tr><td>${esc(s.name)}</td>${STAT_KEYS.map((k) => `<td>${fmtStat(s[k])}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div><p class="muted">— = not tracked</p>` : `<p class="muted">No box score entered.${isEditor() ? ' Use Edit to add one.' : ''}</p>`}
     </section>
 
     <section class="card">
@@ -52,7 +52,8 @@ export function render(root, [gameId]) {
       ${state.categories.map((c) => categoryBlock(c, game, nominees, uid)).join('')}
     </section>`;
 
-  root.querySelector('#del').onclick = async () => {
+  const del = root.querySelector('#del');
+  if (del) del.onclick = async () => {
     if (!confirm('Delete this game, its box score and its votes?')) return;
     const batch = writeBatch(db);
     rows.forEach((s) => batch.delete(doc(db, 'games', gameId, 'stats', s.playerId)));

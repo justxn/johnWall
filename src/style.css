@@ -81,6 +81,8 @@ input[type=checkbox] { width: 1.2rem; height: 1.2rem; }
 .box th, .box td { padding: .45rem .5rem; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .box th:first-child, .box td:first-child, .box th:nth-child(2), .box td:nth-child(2) { text-align: left; }
 .box th { color: var(--muted); font-size: .8rem; font-weight: 600; }
+.box td.arch { text-align: left; white-space: normal; min-width: 8rem; }
+.box th:nth-child(3), .box td:nth-child(3) { text-align: right; }
 .box input.stat { width: 4.2rem; text-align: right; padding: .35rem .4rem; }
 
 .award { padding: .75rem 0; display: grid; gap: .4rem; }

@@ -14,9 +14,30 @@ const set = (k, v) => {
   } catch { /* ignore */ }
 };
 
-export const hasAccess = () => state.group != null && get('hoops.code') === state.group.code;
+// Role is derived from the stored code each time, so changing a code in
+// Firestore revokes old access without any cleanup.
+export function role() {
+  const code = get('hoops.code');
+  if (!code || state.group == null) return null;
+  if (code === state.group.code) return 'editor';
+  if (state.group.viewerCode && code === state.group.viewerCode) return 'viewer';
+  return null;
+}
+export const hasAccess = () => role() != null;
+export const isEditor = () => role() === 'editor';
 export const myId = () => get('hoops.me');
-export const me = () => state.players.find((p) => p.id === myId()) || null;
+// Viewers who aren't on the roster are guests: a name kept only in this
+// browser, never written to `players`, so they don't appear in stats or lists.
+export const isGuest = () => (myId() || '').startsWith('guest-');
+export const me = () => {
+  if (isGuest()) return { id: myId(), name: get('hoops.guest') || 'Guest' };
+  return state.players.find((p) => p.id === myId()) || null;
+};
+
+export function enterAsGuest(name) {
+  set('hoops.guest', name.trim());
+  set('hoops.me', 'guest-' + Math.random().toString(36).slice(2, 10));
+}
 
 export async function enterCode(code) {
   const trimmed = code.trim();
@@ -27,15 +48,23 @@ export async function enterCode(code) {
     set('hoops.code', trimmed);
     return true;
   }
-  if (state.group.code !== trimmed) return false;
+  const ok = trimmed === state.group.code || (state.group.viewerCode && trimmed === state.group.viewerCode);
+  if (!ok) return false;
   set('hoops.code', trimmed);
   return true;
+}
+
+// Empty string removes the viewer code.
+export async function setViewerCode(code) {
+  const viewerCode = code.trim();
+  await setDoc(doc(db, 'config', 'group'), { viewerCode }, { merge: true });
 }
 
 export const pickPlayer = (id) => set('hoops.me', id);
 
 export function signOut() {
   set('hoops.me', null);
+  set('hoops.guest', null);
   set('hoops.code', null);
 }
 

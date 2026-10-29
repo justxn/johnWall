@@ -1,7 +1,7 @@
 import './style.css';
 import { configured } from './firebase.js';
 import { startSync, subscribe, isReady } from './store.js';
-import { hasAccess, me, signOut } from './auth.js';
+import { hasAccess, isEditor, me, signOut } from './auth.js';
 import { esc } from './util.js';
 import * as gate from './pages/gate.js';
 import * as dashboard from './pages/dashboard.js';
@@ -40,7 +40,7 @@ function shell() {
     <header class="top">
       <a class="brand" href="#/">🏀 Intramural Hoops</a>
       <nav>${NAV.map(([h, l]) => `<a href="${h}" class="${hash === h || (h !== '#/' && hash.startsWith(h)) ? 'on' : ''}">${l}</a>`).join('')}</nav>
-      <div class="who">${user ? `${esc(user.name)} · ` : ''}<button class="link" id="signout">Switch</button></div>
+      <div class="who">${isEditor() ? '' : '<span class="pill gold">Viewer</span> '}${user ? `${esc(user.name)} · ` : ''}<button class="link" id="signout">Switch</button></div>
     </header>
     <main id="view"></main>`;
   app.querySelector('#signout').onclick = () => {
@@ -69,6 +69,11 @@ function render(force = false) {
   }
 
   const hash = location.hash || '#/';
+  // Viewers can't reach the add/edit game forms.
+  if (!isEditor() && (hash === '#/games/new' || /^#\/games\/[^/]+\/edit$/.test(hash))) {
+    location.hash = '#/games'; // triggers hashchange -> re-render
+    return;
+  }
   const match = routes.map(([re, page]) => [hash.match(re), page]).find(([m]) => m);
   const [m, page] = match || [null, dashboard];
   const params = m ? m.slice(1) : [];

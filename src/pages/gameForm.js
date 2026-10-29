@@ -2,7 +2,7 @@ import { doc, collection, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { state } from '../store.js';
 import { esc, todayISO } from '../util.js';
-import { STAT_KEYS } from '../stats.js';
+import { STAT_KEYS, STAT_LABELS } from '../stats.js';
 
 // Left alone on snapshot updates so typing isn't wiped mid-entry.
 export const isForm = true;
@@ -39,7 +39,7 @@ export function render(root, [gameId]) {
     <h3>Box score</h3>
     <p class="muted">Check who played. Leave a stat blank if it wasn't tracked.</p>
     <div class="scroll"><table class="box">
-      <thead><tr><th>Played</th><th>Player</th><th>PTS</th><th>REB</th><th>AST</th></tr></thead>
+      <thead><tr><th>Played</th><th>Player</th>${STAT_KEYS.map((k) => `<th>${STAT_LABELS[k]}</th>`).join('')}</tr></thead>
       <tbody>${players
         .map((p) => {
           const s = existing[p.id];

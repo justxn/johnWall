@@ -1,6 +1,8 @@
 // Pure stat helpers. A null stat means "not tracked" and is never treated as 0.
 
-export const STAT_KEYS = ['points', 'rebounds', 'assists'];
+export const STAT_KEYS = ['points', 'rebounds', 'assists', 'steals', 'blocks'];
+export const STAT_LABELS = { points: 'PTS', rebounds: 'REB', assists: 'AST', steals: 'STL', blocks: 'BLK' };
+export const AVG_LABELS = { points: 'PPG', rebounds: 'RPG', assists: 'APG', steals: 'SPG', blocks: 'BPG' };
 
 export const resultOf = (game) => (game.teamScore > game.opponentScore ? 'W' : 'L');
 
