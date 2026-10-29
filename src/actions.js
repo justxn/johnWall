@@ -10,7 +10,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase.js';
-import { gameRsvps, gameStats, state } from './store.js';
+import { gameStats, state } from './store.js';
 import { voteId } from './awards.js';
 import { voterKey } from './auth.js';
 import { STAT_KEYS } from './stats.js';
@@ -65,15 +65,9 @@ export function saveResult(id, fields, lines, { isNew }) {
 export function deleteGame(game) {
   const batch = writeBatch(db);
   gameStats(game.id).forEach((s) => batch.delete(statRef(game.id, s.id)));
-  gameRsvps(game.id).forEach((r) => batch.delete(doc(db, 'games', game.id, 'rsvps', r.id)));
   state.votes.filter((v) => v.gameId === game.id).forEach((v) => batch.delete(doc(db, 'games', game.id, 'votes', v.id)));
   batch.delete(gameRef(game.id));
   return send(batch.commit(), 'Delete');
-}
-
-export function setRsvp(gameId, playerId, status) {
-  const ref = doc(db, 'games', gameId, 'rsvps', playerId);
-  return send(status ? setDoc(ref, { gameId, playerId, status, updatedAt: serverTimestamp() }) : deleteDoc(ref), 'RSVP');
 }
 
 export const myVote = (gameId, categoryId) =>

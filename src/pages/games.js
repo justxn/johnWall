@@ -4,7 +4,6 @@ import { isTeam } from '../auth.js';
 import { finals, liveGames, needsResult, upcoming } from '../stats.js';
 import { dateBlock, empty, gameRow, icon, livePill } from '../ui.js';
 import { fmtDate, fmtTime, todayISO } from '../util.js';
-import { NEEDED, rsvpCount } from './parts.js';
 
 export const meta = { tab: 'games', fab: true };
 
@@ -49,10 +48,7 @@ export function view() {
     <section class="card flush">
       <div class="card-head"><h2>Upcoming</h2>${isTeam() ? html`<a href="#/games/schedule">+ Schedule</a>` : nothing}</div>
       ${next.length
-        ? html`<ul class="list">${next.map((g) => {
-            const n = rsvpCount(g);
-            return scheduledRow(g, html`<small class=${n >= NEEDED ? '' : 'muted'}>${n} of ${NEEDED} in</small>`);
-          })}</ul>`
+        ? html`<ul class="list">${next.map((g) => scheduledRow(g, nothing))}</ul>`
         : html`<p class="pad muted">Nothing on the schedule.</p>`}
     </section>
     <section class="card flush">

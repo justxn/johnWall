@@ -1,13 +1,13 @@
 # Intramural Hoops
 
-App for our intramural 3v3 basketball team: the schedule and who's in, live scorekeeping, box scores and player stats, an injury report, and per-game award voting (MVP plus custom awards). It's built for phones, works with no signal once it has been opened, and can be added to the home screen like an app.
+App for our intramural 3v3 basketball team: the schedule, live scorekeeping, box scores and player stats, an injury report, and per-game award voting (MVP plus custom awards). It's built for phones, works with no signal once it has been opened, and can be added to the home screen like an app.
 
 ## What's in it
 
-- **Home**: next game with who's in, season record and streak, team leaders, latest MVP, injury report, recent results.
-- **Games**: upcoming games (say if you're in), live games, results. Add a final score with a box score, or schedule a game.
+- **Home**: next game, season record and streak, team leaders, latest MVP, injury report, recent results.
+- **Games**: upcoming games, live games, results. Add a final score with a box score, or schedule a game.
 - **Live scoring**: tap +1/+2/+3, REB, AST, STL and BLK for each player; the team score adds itself up. A game clock plus Bench/On-court toggles track minutes. Undo fixes mis-taps, and anyone with the link can follow the score live.
-- **Players**: leaderboard for any stat (per game or totals), player pages with game log, career highs, awards and injuries, and the injury report.
+- **Players**: leaderboard for any stat (per game or totals), player pages with game log, career highs, awards and injuries, and the injury report. Team members add players with **Add player** at the top.
 - **Awards**: MVP and custom awards, voted on each game's page.
 - **Share recap**: makes a game graphic for the group chat or a story.
 
@@ -19,7 +19,7 @@ A stat left blank means "not tracked". It shows as "—" and is left out of aver
 | --- | --- | --- | --- |
 | Anyone with the link | ✓ | | |
 | Joined with the **fan code** | ✓ | ✓ | |
-| Joined with the **team code** | ✓ | ✓ | ✓ (games, scoring, RSVPs, injuries, roster, settings) |
+| Joined with the **team code** | ✓ | ✓ | ✓ (games, scoring, injuries, roster, settings) |
 
 Each phone joins once, then picks which player it belongs to. Anyone with the team code can change everything, so keep it to the team.
 
@@ -50,7 +50,7 @@ The app notices right away. Everyone taps **Join** once more (their code is alre
 
 Nothing to set up: merge to `main` and the new version deploys in basic mode. Existing data keeps working. Old games show up as results, old stats count minutes as "not tracked", existing votes still count, the group code becomes the **team code** and the viewer code becomes the **fan code**. Everyone's saved code keeps working, so nobody has to join again.
 
-The first teammate to open the new version also adds the upcoming league games (Nov 4 and Nov 11) and names the team "John Wall". Both can be changed in the app.
+The first teammate to open the new version also adds the upcoming league games (Nov 4 and Nov 11), adds Clyde, Kotaro and Walter to the roster (unless they're already on it), and names the team "John Wall". All of it can be changed in the app.
 
 Switching to secure mode later is optional (see above). Don't publish the new rules while the first version is still the one deployed: it can't sign in, so it would stop working.
 
@@ -71,7 +71,7 @@ The UI is plain JavaScript rendered with [lit-html](https://lit.dev/docs/librari
 - `config/group`: the team and fan codes (team members only). `config/public`: team name.
 - `members/{uid}`: who joined on which device, their role, and their player.
 - `players`, `awardCategories`, `injuries`.
-- `games/{id}`: `status` is `scheduled`, `live` or `final` (games from the first version have no status and count as final). Subcollections `stats/{playerId}`, `rsvps/{playerId}` and `votes/{voterId}_{categoryId}`.
+- `games/{id}`: `status` is `scheduled`, `live` or `final` (games from the first version have no status and count as final). Subcollections `stats/{playerId}` and `votes/{voterId}_{categoryId}`.
 
 ## Notes
 

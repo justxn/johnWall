@@ -2,14 +2,13 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { collection, collectionGroup, doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './firebase.js';
 
-// Live mirror of Firestore. stats/votes/rsvps come from collection-group
+// Live mirror of Firestore. stats and votes come from collection-group
 // queries; each doc carries its gameId so we never have to walk subcollections.
 export const state = {
   players: [],
   games: [],
   stats: [],
   votes: [],
-  rsvps: [],
   categories: [],
   injuries: [],
   team: null, // config/public ({ teamName, seeded }), null until someone creates it
@@ -25,7 +24,7 @@ export const state = {
   online: navigator.onLine,
 };
 
-const PUBLIC = ['players', 'games', 'stats', 'votes', 'rsvps', 'categories', 'injuries', 'team', 'codes'];
+const PUBLIC = ['players', 'games', 'stats', 'votes', 'categories', 'injuries', 'team', 'codes'];
 const listeners = new Set();
 
 export const isReady = () =>
@@ -140,7 +139,6 @@ export function startSync() {
   watch('injuries', collection(db, 'injuries'));
   watch('stats', collectionGroup(db, 'stats'));
   watch('votes', collectionGroup(db, 'votes'));
-  watch('rsvps', collectionGroup(db, 'rsvps'));
 
   // Metadata changes matter here: one-time setup only runs once the server has
   // confirmed this doc, never off a stale offline copy.
@@ -204,7 +202,6 @@ export const activePlayers = () => sortedPlayers().filter((p) => p.active !== fa
 export const findGame = (id) => state.games.find((g) => g.id === id) || null;
 export const findPlayer = (id) => state.players.find((p) => p.id === id) || null;
 export const gameStats = (gameId) => state.stats.filter((s) => s.gameId === gameId);
-export const gameRsvps = (gameId) => state.rsvps.filter((r) => r.gameId === gameId);
 export const activeInjuries = () => state.injuries.filter((i) => !i.clearedOn);
 export const injuryOf = (playerId) => activeInjuries().find((i) => i.playerId === playerId) || null;
 export const teamName = () => state.team?.teamName || 'Intramural Hoops';

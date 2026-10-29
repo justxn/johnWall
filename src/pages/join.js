@@ -110,7 +110,7 @@ function whoAreYou() {
   const suggested = mine || legacyPlayerId();
   return html`<section class="card stack">
     <h1>Who are you?</h1>
-    <p class="muted">Pick your name so your RSVPs and votes count as you. You can do this on each of your devices.</p>
+    <p class="muted">Pick your name so your votes count as you (and you can't vote for yourself). You can do this on each of your devices.</p>
     <div class="pick">
       ${players.map((p) => html`<button class="btn ${p.id === suggested ? '' : 'secondary'}" @click=${() => pick(p.id)}>${p.name}</button>`)}
     </div>

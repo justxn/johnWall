@@ -4,7 +4,6 @@ import { isMember, isTeam } from '../auth.js';
 import { latestWinners } from '../awards.js';
 import {
   AVG_LABELS,
-  STAT_KEYS,
   finalStats,
   finals,
   fmtAvg,
@@ -20,7 +19,7 @@ import {
 import { clockMs } from '../live.js';
 import { dateBlock, gameRow, icon, injuryPill, livePill } from '../ui.js';
 import { fmtClock, fmtDate, fmtTime, playerName, todayISO } from '../util.js';
-import { h2hLine, myRsvp, rsvpSummary } from './parts.js';
+import { h2hLine, injuryNote } from './parts.js';
 
 export const meta = { tab: 'home', fab: true };
 
@@ -52,7 +51,6 @@ const pendingCard = (g) => html`<section class="card">
 
 function nextGameCard(g, today) {
   const gameDay = g.date === today;
-  const hurt = activeInjuries().filter((i) => state.players.some((p) => p.id === i.playerId && p.active !== false));
   return html`<section class="card next-game">
     <div class="card-head"><h2>${gameDay ? 'Game day' : 'Next game'}</h2><a href="#/games/${g.id}">Details</a></div>
     <a class="next-head plain" href="#/games/${g.id}">
@@ -66,11 +64,7 @@ function nextGameCard(g, today) {
       </div>
     </a>
     <small class="muted">${h2hLine(g.opponent, { excludeId: g.id })}</small>
-    ${rsvpSummary(g)}
-    ${myRsvp(g)}
-    ${hurt.length
-      ? html`<small class="muted">Injuries: ${hurt.map((i, n) => html`${n ? ', ' : ''}${playerName(state.players, i.playerId)} ${injuryPill(i)}`)}</small>`
-      : nothing}
+    ${injuryNote()}
     ${isTeam() && gameDay ? html`<a class="btn block" href="#/games/${g.id}/live">${icon('live')}Start live scoring</a>` : nothing}
   </section>`;
 }
@@ -101,18 +95,25 @@ function recordCard() {
   </section>`;
 }
 
+// The three headline stats, in one row.
+const LEADER_STATS = ['points', 'rebounds', 'assists'];
+
 function leadersCard() {
   const done = finalStats(state.games, state.stats);
-  const tops = STAT_KEYS.map((k) => ({ k, top: leaders(state.players, done, k)[0] })).filter((x) => x.top);
-  if (!tops.length) return nothing;
+  const tops = LEADER_STATS.map((k) => ({ k, top: leaders(state.players, done, k)[0] }));
+  if (!tops.some((x) => x.top)) return nothing;
   return html`<section class="card">
     <div class="card-head"><h2>Team leaders</h2><a href="#/players">All stats</a></div>
     <div class="leaders">
-      ${tops.map(({ k, top }) => html`<a class="leader" href="#/players/${top.player.id}">
-        <small class="muted">${AVG_LABELS[k]}</small>
-        <strong>${fmtAvg(top.value)}</strong>
-        <span class="ellipsis">${top.player.name}</span>
-      </a>`)}
+      ${tops.map(({ k, top }) =>
+        top
+          ? html`<a class="leader" href="#/players/${top.player.id}">
+              <small class="muted">${AVG_LABELS[k]}</small>
+              <strong>${fmtAvg(top.value)}</strong>
+              <span class="ellipsis">${top.player.name}</span>
+            </a>`
+          : html`<div class="leader"><small class="muted">${AVG_LABELS[k]}</small><strong>—</strong><span class="muted">Not tracked</span></div>`,
+      )}
     </div>
   </section>`;
 }
@@ -155,6 +156,6 @@ function recentCard() {
 
 const joinCard = () => html`<section class="card">
   <h2>On the team?</h2>
-  <p class="muted">Join with your team code to keep score, say if you're in, and vote for MVP. Fans can join with the fan code to vote.</p>
+  <p class="muted">Join with your team code to keep score, report injuries and vote for MVP. Fans can join with the fan code to vote.</p>
   <a class="btn" href="#/join">Join</a>
 </section>`;

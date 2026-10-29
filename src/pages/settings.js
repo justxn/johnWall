@@ -48,7 +48,7 @@ function youCard() {
   if (!isMember()) {
     return html`<section class="card">
       <h2>You're just looking</h2>
-      <p class="muted">Anyone with the link can see scores and stats. Join with the team code to keep score and RSVP, or with the fan code to vote for awards.</p>
+      <p class="muted">Anyone with the link can see scores and stats. Join with the team code to keep score and update stats, or with the fan code to vote for awards.</p>
       <a class="btn" href="#/join">Join</a>
     </section>`;
   }
@@ -145,7 +145,7 @@ function rosterCard() {
   const devices = (id) => state.members.filter((m) => m.playerId === id).length;
   return html`<section class="card">
     <h2>Roster</h2>
-    <p class="hint">Inactive players drop off the box score form and RSVP lists but keep their stats. Only players with no stats can be deleted.</p>
+    <p class="hint">Inactive players drop off the box score form but keep their stats. Only players with no stats can be deleted.</p>
     ${players.map((p) => html`<div class="injury">
       ${renaming === p.id
         ? html`<form class="row" @submit=${(e) => {
@@ -194,7 +194,7 @@ function membersCard() {
   return html`<section class="card">
     <h2>People who joined</h2>
     <p class="hint">Removing someone signs that device out. Change the codes too if they shouldn't come back.</p>
-    ${members.map((m) => html`<div class="between rsvp-row">
+    ${members.map((m) => html`<div class="between member-row">
       <span class="row grow">${avatar(label(m))}<span class="grow">
         <strong class="ellipsis">${label(m)}${m.id === state.uid ? ' (you)' : ''}</strong>
         <small class="muted">${m.joinedAt ? `Joined ${fmtDate(todayISO(new Date(m.joinedAt)))}` : ''}</small>

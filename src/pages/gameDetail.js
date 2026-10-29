@@ -8,7 +8,7 @@ import { clockMs, clockRunning } from '../live.js';
 import { openRecap } from '../recap.js';
 import { backLink, dateBlock, icon, livePill, resultPill, when } from '../ui.js';
 import { fmtClock, playerName } from '../util.js';
-import { boxScore, h2hLine, myRsvp, rsvpList, rsvpSummary } from './parts.js';
+import { boxScore, h2hLine, injuryNote } from './parts.js';
 
 export const meta = { tab: 'games' };
 
@@ -28,7 +28,7 @@ const metaLine = (game) => html`<div class="meta-line">
 </div>`;
 
 function remove(game) {
-  if (!confirm('Delete this game, its box score, RSVPs and votes?')) return;
+  if (!confirm('Delete this game, its box score and its votes?')) return;
   deleteGame(game);
   location.hash = '#/games';
 }
@@ -52,6 +52,7 @@ function scheduled(game) {
       </div>
       ${metaLine(game)}
       <p class="muted">${h2hLine(game.opponent, { excludeId: game.id })}</p>
+      ${injuryNote()}
       ${isTeam()
         ? html`<div class="stack">
             <a class="btn block" href="#/games/${game.id}/live">${icon('live')}Start live scoring</a>
@@ -62,12 +63,6 @@ function scheduled(game) {
             </div>
           </div>`
         : nothing}
-    </section>
-    <section class="card">
-      <h2>Who's in?</h2>
-      ${rsvpSummary(game)}
-      ${myRsvp(game)}
-      ${rsvpList(game)}
     </section>`;
 }
 

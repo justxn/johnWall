@@ -87,11 +87,6 @@ service cloud.firestore {
         allow write: if isTeam();
       }
 
-      match /rsvps/{playerId} {
-        allow read: if true;
-        allow write: if isTeam();
-      }
-
       // One vote per voter per award: the doc id is {voterId}_{categoryId}.
       // Players vote as their player id, everyone else as their sign-in.
       match /votes/{voteId} {
@@ -108,9 +103,8 @@ service cloud.firestore {
       }
     }
 
-    // Collection-group queries (all stats/votes/RSVPs at once) need their own read rules.
+    // Collection-group queries (all stats/votes at once) need their own read rules.
     match /{path=**}/stats/{playerId} { allow read: if true; }
     match /{path=**}/votes/{voteId} { allow read: if true; }
-    match /{path=**}/rsvps/{playerId} { allow read: if true; }
   }
 }

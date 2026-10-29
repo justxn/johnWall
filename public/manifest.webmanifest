@@ -1,7 +1,7 @@
 {
   "name": "Intramural Hoops",
   "short_name": "Hoops",
-  "description": "Scores, stats, RSVPs, injuries and MVP votes for our intramural 3v3 team.",
+  "description": "Scores, stats, injuries and MVP votes for our intramural 3v3 team.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

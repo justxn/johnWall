@@ -1,15 +1,46 @@
 import { html, nothing } from 'lit-html';
 import { activeInjuries, injuryOf, sortedPlayers, state } from '../store.js';
 import { isTeam } from '../auth.js';
+import { addPlayer } from '../actions.js';
 import { awardWins } from '../awards.js';
 import { AVG_LABELS, STAT_KEYS, STAT_LABELS, STAT_NAMES, finalStats, fmtAvg, isFinal, leaders, playerLine } from '../stats.js';
-import { icon, injuryPill, rerender, segmented } from '../ui.js';
+import { icon, injuryPill, openSheet, rerender, segmented, toast } from '../ui.js';
+import { normName } from '../util.js';
 
 export const meta = { tab: 'players' };
 
 // The chosen stat sticks while you move around the app.
 let stat = 'points';
 let totals = false;
+
+// Stays open so several players can be added in a row.
+function addPlayerSheet() {
+  openSheet(
+    () => html`<form class="stack" novalidate @submit=${(e) => {
+      e.preventDefault();
+      const input = e.currentTarget.elements.namedItem('name');
+      const name = input.value.trim();
+      if (!name) return;
+      if (state.players.some((p) => normName(p.name) === normName(name))) return toast(`${name} is already on the roster`, 'error');
+      addPlayer(name);
+      toast(`Added ${name}`);
+      input.value = '';
+    }}>
+      <label>Name<input name="name" placeholder="e.g. Clyde" autocomplete="off" autocapitalize="words" enterkeyhint="done" /></label>
+      <button class="btn block">Add to the roster</button>
+      <p class="hint">Rename players or mark them inactive in Settings → Roster.</p>
+    </form>`,
+    { title: 'Add a player' },
+  );
+}
+
+// Page title for both Players views, with the add button for the team.
+export const playersHeader = (current) => html`
+  <div class="between">
+    <h1>Players</h1>
+    ${isTeam() ? html`<button class="btn sm" @click=${addPlayerSheet}>${icon('plus')}Add player</button>` : nothing}
+  </div>
+  ${playerTabs(current)}`;
 
 export const playerTabs = (current) => {
   const hurt = activeInjuries().length;
@@ -63,8 +94,7 @@ export function view() {
   const others = sortedPlayers().filter((p) => p.active !== false && !rows.some((r) => r.player.id === p.id));
   const label = stat === 'awards' ? 'Awards won' : totals ? `Total ${STAT_NAMES[stat].toLowerCase()}` : AVG_LABELS[stat];
   return html`
-    <h1>Players</h1>
-    ${playerTabs('stats')}
+    ${playersHeader('stats')}
     <div class="chips" role="tablist" aria-label="Stat">
       ${[...STAT_KEYS, 'awards'].map((k) => html`<button
         role="tab"

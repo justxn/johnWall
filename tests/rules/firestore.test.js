@@ -143,14 +143,12 @@ describe('writing team data', () => {
       await assertFails(setDoc(doc(db(uid), 'games/g2'), { opponent: 'Hackers' }));
       await assertFails(updateDoc(doc(db(uid), 'games/g1/stats/p1'), { points: 99 }));
       await assertFails(setDoc(doc(db(uid), 'players/p9'), { name: 'Imposter' }));
-      await assertFails(setDoc(doc(db(uid), 'games/g1/rsvps/p1'), { status: 'in' }));
       await assertFails(setDoc(doc(db(uid), 'injuries/i1'), { playerId: 'p1', status: 'out' }));
       await assertFails(setDoc(doc(db(uid), 'config/public'), { teamName: 'Hacked' }));
     }
     const fs = db('captain');
     await assertSucceeds(setDoc(doc(fs, 'games/g2'), { opponent: 'Brick Squad', status: 'scheduled' }));
     await assertSucceeds(updateDoc(doc(fs, 'games/g1/stats/p1'), { points: 12 }));
-    await assertSucceeds(setDoc(doc(fs, 'games/g1/rsvps/p2'), { gameId: 'g1', playerId: 'p2', status: 'in' }));
     await assertSucceeds(setDoc(doc(fs, 'injuries/i1'), { playerId: 'p2', status: 'out' }));
     await assertSucceeds(updateDoc(doc(fs, 'config/group'), { viewerCode: 'new-fan-code' }));
   });

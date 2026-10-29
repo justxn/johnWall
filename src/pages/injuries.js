@@ -4,7 +4,7 @@ import { isTeam, myPlayerId } from '../auth.js';
 import { clearInjury, deleteInjury, saveInjury } from '../actions.js';
 import { INJURY_STATUSES, closeSheet, icon, injuryLabel, injuryPill, openSheet, rerender, toast } from '../ui.js';
 import { fmtDate, todayISO } from '../util.js';
-import { playerTabs } from './players.js';
+import { playersHeader } from './players.js';
 
 export const meta = { tab: 'players' };
 
@@ -14,8 +14,7 @@ export function view() {
   const current = activeInjuries().sort((a, b) => severity(a) - severity(b));
   const past = state.injuries.filter((i) => i.clearedOn).sort((a, b) => b.clearedOn.localeCompare(a.clearedOn));
   return html`
-    <h1>Players</h1>
-    ${playerTabs('injuries')}
+    ${playersHeader('injuries')}
     <section class="card">
       <div class="card-head">
         <h2>Injury report</h2>

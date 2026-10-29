@@ -1,6 +1,6 @@
 import { html, nothing } from 'lit-html';
 import { repeat } from 'lit-html/directives/repeat.js';
-import { activePlayers, findGame, findPlayer, gameRsvps, gameStats, injuryOf, teamName } from '../store.js';
+import { activePlayers, findGame, findPlayer, gameStats, injuryOf, teamName } from '../store.js';
 import {
   addLivePlayer,
   cancelLive,
@@ -74,14 +74,12 @@ export function view([id]) {
 const nowHHMM = () => new Date().toTimeString().slice(0, 5);
 
 function initSetup(game) {
-  const roster = activePlayers().map((p) => p.id);
-  const said = game ? gameRsvps(game.id).filter((r) => r.status === 'in').map((r) => r.playerId) : [];
-  const chosen = said.filter((pid) => roster.includes(pid));
   return {
     key: game?.id ?? 'new',
     id: game?.id ?? newGameId(),
-    // Whoever said they're in; otherwise everyone who isn't ruled out.
-    players: new Set(chosen.length ? chosen : roster.filter((pid) => injuryOf(pid)?.status !== 'out')),
+    // Nobody to start with: anyone left switched on by mistake would get a
+    // game played with all zeros.
+    players: new Set(),
     tracked: new Set(STAT_KEYS),
     error: '',
   };
@@ -110,7 +108,7 @@ function setupView(game) {
               <label>Court<input name="location" placeholder="e.g. IMSB Court 4a" autocomplete="off" /></label>`}
       </section>
       <section class="card stack">
-        <div><h2>Who's playing?</h2><p class="hint">You can add people during the game too.</p></div>
+        <div><h2>Who's playing?</h2><p class="hint">Switch on everyone who's here. You can add people during the game too.</p></div>
         ${players.length ? nothing : html`<p class="muted">No players yet. Add them in Settings → Roster first.</p>`}
         ${players.map((p) => html`<label class="switch between">
           <span class="row"><strong>${p.name}</strong>${injuryPill(injuryOf(p.id))}</span>

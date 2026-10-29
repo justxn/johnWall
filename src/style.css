@@ -188,7 +188,7 @@ main.loading { min-height: 60dvh; place-items: center; }
 .card.flush { padding: 0; gap: 0; overflow: hidden; }
 .card.flush > .card-head { padding: 16px 16px 4px; }
 .card.flush > .pad { padding: 4px 16px 16px; }
-main > h1 { margin: 4px 4px 0; }
+main > h1, main > .between > h1 { margin: 4px 4px 0; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; }
 .card-head a, .card-head .link { font-weight: 600; font-size: .95rem; }
 .section-title { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 8px 4px -4px; }
@@ -295,12 +295,13 @@ main > h1 { margin: 4px 4px 0; }
 .statline { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .9rem; color: var(--muted); }
 .statline b { color: var(--text); }
 
-.leaders { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.leaders { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .leader {
   display: grid; gap: 2px; padding: 12px; border-radius: 12px; background: var(--card-2); color: var(--text); min-width: 0;
 }
 .leader small { font-weight: 700; letter-spacing: .04em; }
 .leader strong { font-size: 1.5rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.leader span { font-size: .9rem; }
 
 .live-banner {
   display: flex; align-items: center; gap: 12px; padding: 14px 16px;
@@ -309,25 +310,12 @@ main > h1 { margin: 4px 4px 0; }
 }
 .live-banner .score { font-size: 1.3rem; }
 
-/* ---------- Next game / RSVP ---------- */
+/* ---------- Next game ---------- */
 .next-game { display: grid; gap: 12px; }
 .next-head { display: flex; gap: 12px; align-items: center; }
 .vs { font-size: 1.15rem; font-weight: 800; }
-.rsvp-bar { display: flex; align-items: center; gap: 8px; font-weight: 650; }
-.rsvp-bar.short { color: var(--warn); }
-.rsvp-bar.full { color: var(--win); }
-.rsvp-choice { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.rsvp-choice button {
-  min-height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--card);
-  font: inherit; font-weight: 700; color: var(--text); cursor: pointer;
-}
-.rsvp-choice button.on.in { background: var(--win); border-color: var(--win); color: var(--on-win); }
-.rsvp-choice button.on.maybe { background: var(--gold); border-color: var(--gold); color: var(--on-gold); }
-.rsvp-choice button.on.out { background: var(--loss); border-color: var(--loss); color: var(--on-loss); }
-.rsvp-list { display: grid; gap: 2px; }
-.rsvp-row { display: flex; align-items: center; gap: 10px; min-height: 48px; }
-.rsvp-row .name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
-.rsvp-row select { width: auto; min-width: 104px; min-height: 40px; padding: 6px 10px; }
+.member-row { display: flex; align-items: center; gap: 10px; min-height: 48px; }
+.member-row select { width: auto; min-width: 104px; min-height: 40px; padding: 6px 10px; }
 
 /* ---------- Forms ---------- */
 label, .field { display: grid; gap: 6px; font-size: .9rem; font-weight: 600; color: var(--muted); }
