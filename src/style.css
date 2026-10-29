@@ -1,13 +1,13 @@
 :root {
-  --bg: #14161a;
-  --card: #1e2128;
-  --line: #2f343e;
-  --text: #eef0f4;
-  --muted: #9aa1ae;
-  --accent: #f26b21;
-  --win: #2fb36b;
-  --loss: #e5484d;
-  --gold: #e9b52e;
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --line: #dde1e7;
+  --text: #1d2330;
+  --muted: #66707f;
+  --accent: #e8590c;
+  --win: #2b9a5e;
+  --loss: #d6393f;
+  --gold: #f2c744;
 }
 
 * { box-sizing: border-box; }
@@ -70,7 +70,7 @@ input[type=checkbox] { width: 1.2rem; height: 1.2rem; }
 .list a { display: flex; align-items: center; gap: .6rem; padding: .65rem 0; color: var(--text); }
 
 .pill { display: inline-block; min-width: 1.6rem; text-align: center; padding: 1px 8px; border-radius: 99px; font-weight: 700; font-size: .85rem; }
-.pill.win { background: var(--win); color: #06210f; }
+.pill.win { background: var(--win); color: #fff; }
 .pill.loss { background: var(--loss); color: #fff; }
 .pill.gold { background: var(--gold); color: #2a2000; }
 
