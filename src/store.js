@@ -16,14 +16,16 @@ export const state = {
   teamSynced: false, // config/public confirmed by the server, not just the offline cache
   uid: undefined, // undefined = auth not checked yet, null = not signed in
   member: null, // members/{uid}: { role: 'team' | 'fan', playerId?, name? }
-  members: [], // everyone who joined (only loaded for team members)
-  codes: null, // config/group ({ code, viewerCode }), only readable by team members
+  members: [], // everyone who joined with a sign-in (only loaded for team members)
+  codes: null, // config/group ({ code, viewerCode }) when this device can read it
+  codesReadable: false, // true under the original open rules (or for team members under the new ones)
+  codesSynced: false, // config/group confirmed by the server, not just the offline cache
   loaded: new Set(),
   error: null,
   online: navigator.onLine,
 };
 
-const PUBLIC = ['players', 'games', 'stats', 'votes', 'rsvps', 'categories', 'injuries', 'team'];
+const PUBLIC = ['players', 'games', 'stats', 'votes', 'rsvps', 'categories', 'injuries', 'team', 'codes'];
 const listeners = new Set();
 
 export const isReady = () =>
@@ -35,6 +37,9 @@ export function subscribe(fn) {
 }
 
 const notify = () => listeners.forEach((fn) => fn());
+
+// For changes kept on this phone (not in Firestore) that the page should show.
+export const changed = notify;
 
 function mark(key) {
   state.loaded.add(key);
@@ -68,38 +73,63 @@ function watch(key, query) {
 }
 
 let memberUnsub = null;
-let teamUnsubs = [];
+let membersUnsub = null;
+let codesUnsub = null;
 let memberConfirmed = false; // the server has confirmed this device's membership
+let signedInTeam = false;
 
-function stopTeamListeners() {
-  teamUnsubs.forEach((u) => u());
-  teamUnsubs = [];
-  state.members = [];
-  state.codes = null;
+// The join codes. Under the original open rules anyone can read them, so codes
+// are checked on the phone. Under the new rules only signed-in team members can,
+// and the database checks codes itself. Re-read whenever membership changes.
+function watchCodes() {
+  codesUnsub?.();
+  codesUnsub = onSnapshot(
+    doc(db, 'config', 'group'),
+    { includeMetadataChanges: true },
+    (snap) => {
+      state.codes = snap.exists() ? snap.data() : null;
+      state.codesReadable = true;
+      state.codesSynced = !snap.metadata.fromCache;
+      mark('codes');
+    },
+    () => {
+      codesUnsub = null;
+      state.codes = null;
+      state.codesReadable = false;
+      mark('codes');
+    },
+  );
 }
 
-// The member list and join codes are team-only, so listen only while on the
-// team (as confirmed by the server). If the server refuses, start over shortly.
+function stopMembers() {
+  membersUnsub?.();
+  membersUnsub = null;
+  state.members = [];
+}
+
+// The member list (signed-in members only) is team-only, so listen only while
+// on the team as confirmed by the server. If the server refuses, retry shortly.
 function syncTeamListeners() {
   const onTeam = memberConfirmed && state.member?.role === 'team';
-  if (onTeam && !teamUnsubs.length) {
-    const quiet = (err) => {
-      console.warn('Team-only listener stopped', err);
-      stopTeamListeners();
-      setTimeout(syncTeamListeners, 5000);
-    };
-    teamUnsubs = [
-      onSnapshot(collection(db, 'members'), (snap) => {
+  if (onTeam !== signedInTeam) {
+    signedInTeam = onTeam;
+    watchCodes();
+  }
+  if (onTeam && !membersUnsub) {
+    membersUnsub = onSnapshot(
+      collection(db, 'members'),
+      (snap) => {
         state.members = snap.docs.map(plain);
         notify();
-      }, quiet),
-      onSnapshot(doc(db, 'config', 'group'), (snap) => {
-        state.codes = snap.exists() ? snap.data() : null;
-        notify();
-      }, quiet),
-    ];
-  } else if (!onTeam && teamUnsubs.length) {
-    stopTeamListeners();
+      },
+      (err) => {
+        console.warn('Member list stopped', err);
+        stopMembers();
+        setTimeout(syncTeamListeners, 5000);
+      },
+    );
+  } else if (!onTeam && membersUnsub) {
+    stopMembers();
   }
 }
 
@@ -124,6 +154,7 @@ export function startSync() {
     },
     (err) => fail('team', err),
   );
+  watchCodes();
 
   onAuthStateChanged(auth, (user) => {
     state.uid = user ? user.uid : null;
@@ -132,7 +163,7 @@ export function startSync() {
     state.member = null;
     memberConfirmed = false;
     state.loaded.delete('member');
-    stopTeamListeners();
+    syncTeamListeners();
     if (user) {
       memberUnsub = onSnapshot(
         doc(db, 'members', user.uid),

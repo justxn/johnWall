@@ -15,8 +15,8 @@ let done = false;
 // Waits until the server (not the offline cache) has confirmed what's already
 // there, then fills in anything missing: the schedule, the team name and the
 // default MVP award.
-export function seedOnce(state) {
-  if (done || !state.teamSynced || state.member?.role !== 'team') return;
+export function seedOnce(state, onTeam) {
+  if (done || !state.teamSynced || !onTeam) return;
   done = true;
 
   const seeded = new Set(state.team?.seeded || []);

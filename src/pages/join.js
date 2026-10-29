@@ -1,6 +1,6 @@
 import { html, nothing } from 'lit-html';
 import { activePlayers, state, teamName } from '../store.js';
-import { claimPlayer, clearLegacyPlayer, createTeam, isMember, isTeam, join, legacyCode, legacyPlayerId, role, setMyName } from '../auth.js';
+import { claimPlayer, createTeam, isMember, isTeam, join, legacyCode, legacyPlayerId, myName, myPlayerId, role, setMyName } from '../auth.js';
 import { addPlayer, describeError } from '../actions.js';
 import { rerender, toast } from '../ui.js';
 
@@ -101,13 +101,12 @@ function createForm() {
 
 function pick(playerId) {
   claimPlayer(playerId).catch((err) => toast(describeError(err), 'error'));
-  clearLegacyPlayer();
   location.hash = '#/';
 }
 
 function whoAreYou() {
   const players = activePlayers();
-  const mine = state.member?.playerId || null;
+  const mine = myPlayerId();
   const suggested = mine || legacyPlayerId();
   return html`<section class="card stack">
     <h1>Who are you?</h1>
@@ -139,7 +138,7 @@ function fanName() {
       if (name) setMyName(name).catch((err) => toast(describeError(err), 'error'));
       location.hash = '#/';
     }}>
-      <label>Your name<input name="name" value=${state.member?.name ?? ''} autocomplete="off" /></label>
+      <label>Your name<input name="name" value=${myName()} autocomplete="off" /></label>
       <button class="btn block">Done</button>
     </form>
   </section>

@@ -2,7 +2,7 @@ import './style.css';
 import { html, nothing, render } from 'lit-html';
 import { configured } from './firebase.js';
 import { findPlayer, isReady, startSync, state, subscribe, teamName } from './store.js';
-import { isMember, isTeam, role } from './auth.js';
+import { isMember, isTeam, myName, myPlayerId, role } from './auth.js';
 import { avatar, closeSheet, icon, openSheet, rerender, setRenderer, sheetLayer, sheetOpen, toastLayer } from './ui.js';
 import { initTheme } from './theme.js';
 import { seedOnce } from './seed.js';
@@ -70,7 +70,7 @@ function navigate() {
   rerender();
 }
 
-const myName = () => findPlayer(state.member?.playerId)?.name || state.member?.name || (isTeam() ? 'Team' : 'Fan');
+const displayName = () => findPlayer(myPlayerId())?.name || myName() || (isTeam() ? 'Team' : 'Fan');
 
 function addGameSheet() {
   const item = (href, ico, title, sub) => html`<a href=${href} @click=${closeSheet}>
@@ -94,7 +94,7 @@ const topBar = (meta) => html`<header class="topbar">
   <div class="topbar-actions">
     ${isMember()
       ? html`<a class="me" href="#/settings" aria-label="Settings">
-          ${role() === 'fan' ? html`<span class="pill gold">Fan</span>` : nothing}${avatar(myName())}
+          ${role() === 'fan' ? html`<span class="pill gold">Fan</span>` : nothing}${avatar(displayName())}
         </a>`
       : html`<a class="btn sm" href="#/join">Join</a>
           <a class="icon-btn" href="#/settings" aria-label="Settings">${icon('account')}</a>`}
@@ -160,7 +160,7 @@ navigate();
 
 if (configured) {
   subscribe(() => {
-    if (isReady()) seedOnce(state);
+    if (isReady()) seedOnce(state, isTeam());
     rerender();
   });
   startSync();

@@ -1,6 +1,6 @@
 import { html, nothing } from 'lit-html';
 import { findPlayer, sortedPlayers, state, teamName } from '../store.js';
-import { isMember, isTeam, leave, role, setMyName } from '../auth.js';
+import { basicMode, isMember, isTeam, leave, myName, myPlayerId, role, setMyName, usesSignIn } from '../auth.js';
 import {
   addPlayer,
   deletePlayer,
@@ -30,12 +30,12 @@ export function view() {
     <h1>Settings</h1>
     ${youCard()}
     ${appearanceCard()}
-    ${isTeam() ? html`${teamCard()}${rosterCard()}${membersCard()}` : nothing}`;
+    ${isTeam() ? html`${teamCard()}${rosterCard()}${usesSignIn() ? membersCard() : nothing}` : nothing}`;
 }
 
 async function signOutHere() {
   if (!confirm('Sign this phone out? You\'ll need the code to get back in.')) return;
-  if (!state.online) return toast('You\'re offline. Signing out needs a connection.', 'error');
+  if (usesSignIn() && !state.online) return toast('You\'re offline. Signing out needs a connection.', 'error');
   try {
     await leave();
     location.hash = '#/';
@@ -52,7 +52,7 @@ function youCard() {
       <a class="btn" href="#/join">Join</a>
     </section>`;
   }
-  const player = findPlayer(state.member?.playerId);
+  const player = findPlayer(myPlayerId());
   return html`<section class="card">
     <h2>You</h2>
     ${role() === 'team'
@@ -65,7 +65,7 @@ function youCard() {
           setMyName(String(new FormData(e.currentTarget).get('name'))).then(() => toast('Saved'), (err) => toast(describeError(err), 'error'));
         }}>
           <p class="muted">You joined as a fan, so you can vote for awards.</p>
-          <label>Your name<input name="name" value=${state.member?.name ?? ''} placeholder="So the team knows who's voting" autocomplete="off" /></label>
+          <label>Your name<input name="name" value=${myName()} placeholder="So the team knows who's voting" autocomplete="off" /></label>
           <button class="btn secondary">Save name</button>
         </form>`}
     <button class="btn danger-ghost" @click=${signOutHere}>Sign out on this phone</button>
@@ -113,7 +113,10 @@ function teamCard() {
         <span><small class="muted">Fan code</small><br /><strong class="num">${masked(codes?.viewerCode)}</strong></span>
         <button class="btn ghost sm" @click=${() => { showCodes = !showCodes; rerender(); }}>${showCodes ? 'Hide' : 'Show'}</button>
       </div>
-      <p class="hint">Share the team code with players and the fan code with friends who want to vote. Only team members can see these.</p>
+      <p class="hint">Share the team code with players and the fan code with friends who want to vote.${basicMode() ? '' : ' Only team members can see these.'}</p>
+      ${basicMode()
+        ? html`<p class="warning">Basic security: codes are checked on each phone, like the first version, and the database is still open to anyone tech-savvy. To lock it down, whoever owns the Firebase project turns on Anonymous sign-in and publishes <code>firestore.rules</code> (see the README). Everyone then taps Join once more.</p>`
+        : nothing}
       ${showCodes
         ? html`<form class="stack" @submit=${(e) => {
             e.preventDefault();
@@ -158,7 +161,7 @@ function rosterCard() {
         : html`<div class="between">
             <span class="grow">
               <strong class="ellipsis">${p.name}</strong>
-              <small class="muted">${devices(p.id) ? `Linked on ${devices(p.id)} ${devices(p.id) === 1 ? 'device' : 'devices'}` : 'Not linked yet'}</small>
+              ${usesSignIn() ? html`<small class="muted">${devices(p.id) ? `Linked on ${devices(p.id)} ${devices(p.id) === 1 ? 'device' : 'devices'}` : 'Not linked yet'}</small>` : nothing}
             </span>
             <button class="icon-btn" aria-label="Rename ${p.name}" @click=${() => { renaming = p.id; rerender(); }}>${icon('edit')}</button>
           </div>`}

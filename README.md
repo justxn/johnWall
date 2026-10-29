@@ -21,7 +21,21 @@ A stat left blank means "not tracked". It shows as "—" and is left out of aver
 | Joined with the **fan code** | ✓ | ✓ | |
 | Joined with the **team code** | ✓ | ✓ | ✓ (games, scoring, RSVPs, injuries, roster, settings) |
 
-Joining signs the phone in anonymously (no account or password) and Firestore's security rules check the code, so the codes never reach anyone's browser. Each phone joins once, then picks which player it belongs to. Anyone with the team code can change everything, so keep it to the team.
+Each phone joins once, then picks which player it belongs to. Anyone with the team code can change everything, so keep it to the team.
+
+### Basic and secure mode
+
+The app works with the Firebase project as it is and picks the mode by itself:
+
+- **Basic** (the original open rules, nothing to set up): the phone checks the code and remembers it, like the first version. Codes saved by the first version keep working. The database itself stays open, so someone tech-savvy could read the codes or change data.
+- **Secure** (Anonymous sign-in turned on and `firestore.rules` published): joining signs the phone in anonymously (no account or password) and the database checks the code, so the codes never reach a browser and only members can change anything.
+
+To switch from basic to secure, whoever owns the Firebase project does two things, in this order:
+
+1. **Authentication → Sign-in method** → enable **Anonymous**.
+2. Publish the rules: paste `firestore.rules` into Firestore's **Rules** tab, or run `npx firebase-tools deploy --only firestore:rules --project <your-project-id>`.
+
+The app notices right away. Everyone taps **Join** once more (their code is already filled in) and picks their name again.
 
 ## Setup (new Firebase project)
 
@@ -34,16 +48,11 @@ Joining signs the phone in anonymously (no account or password) and Firestore's 
 
 ## Upgrading from the first version
 
-Existing data keeps working. Old games show up as results, old stats count minutes as "not tracked", existing votes still count, and the current group code becomes the **team code** (the viewer code becomes the **fan code**).
-
-Do these in order:
-
-1. Firebase console → **Authentication → Sign-in method** → enable **Anonymous**.
-2. Merge to `main` so the new version deploys.
-3. Right after it's live, publish the new `firestore.rules` (step 3 above). Until then the database is as open as before; publishing them before the new version is live would break the old one.
-4. Everyone opens the app, taps **Join** (the old code is filled in) and picks their name.
+Nothing to set up: merge to `main` and the new version deploys in basic mode. Existing data keeps working. Old games show up as results, old stats count minutes as "not tracked", existing votes still count, the group code becomes the **team code** and the viewer code becomes the **fan code**. Everyone's saved code keeps working, so nobody has to join again.
 
 The first teammate to open the new version also adds the upcoming league games (Nov 4 and Nov 11) and names the team "John Wall". Both can be changed in the app.
+
+Switching to secure mode later is optional (see above). Don't publish the new rules while the first version is still the one deployed: it can't sign in, so it would stop working.
 
 ## Deploy (GitHub Pages)
 
