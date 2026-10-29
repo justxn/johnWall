@@ -2,3 +2,7 @@ node_modules
 dist
 .env
 .env.local
+
+# Firebase emulator logs
+*-debug.log
+.firebase/

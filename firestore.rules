@@ -1,10 +1,116 @@
 rules_version = '2';
+
+// Anyone with the link can read team data. Writing needs membership:
+//   - 'team' members (joined with the team code) can change anything.
+//   - 'fan' members (joined with the fan code) can vote for awards.
+// Joining is anonymous sign-in plus a code. The client writes the code to
+// joins/{uid} in the same batch as members/{uid}, and these rules compare it to
+// config/group, which no client can read unless already on the team.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // No user accounts: the group code is checked in the client, so this is
-    // "keep out casual strangers", not real security. Fine for a friend group.
-    match /{document=**} {
-      allow read, write: if true;
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function memberPath(uid) { return /databases/$(database)/documents/members/$(uid); }
+    function isMember() { return signedIn() && exists(memberPath(request.auth.uid)); }
+    function me() { return get(memberPath(request.auth.uid)).data; }
+    function isTeam() { return isMember() && me().role == 'team'; }
+    // Only team members act as a player (votes, no voting for yourself).
+    function myPlayerId() { return me().role == 'team' ? me().get('playerId', null) : null; }
+
+    function validJoin(uid, role) {
+      let code = getAfter(/databases/$(database)/documents/joins/$(uid)).data.code;
+      let group = getAfter(/databases/$(database)/documents/config/group).data;
+      return (role == 'team' && code == group.code)
+        || (role == 'fan' && group.get('viewerCode', '') != '' && code == group.viewerCode);
     }
+
+    // The secret join codes.
+    match /config/group {
+      allow read, update: if isTeam();
+      // First-time setup: whoever creates the team picks the codes.
+      allow create: if signedIn()
+        && request.resource.data.code is string
+        && request.resource.data.code.size() >= 4;
+    }
+
+    // Team name and one-time setup markers.
+    match /config/public {
+      allow read: if true;
+      allow write: if isTeam();
+    }
+
+    // Write-only: holds the code someone typed, for validJoin() to check.
+    match /joins/{uid} {
+      allow create, update: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['code'])
+        && request.resource.data.code is string;
+    }
+
+    match /members/{uid} {
+      allow read: if isSelf(uid) || isTeam();
+      // Join (or switch roles) by proving a code. Only team members get linked
+      // to a player.
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['role', 'joinedAt', 'name'])
+        && request.resource.data.role in ['team', 'fan']
+        && validJoin(uid, request.resource.data.role);
+      allow update: if isTeam()
+        || (isSelf(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']))
+        || (isSelf(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'joinedAt'])
+          && request.resource.data.role in ['team', 'fan']
+          && validJoin(uid, request.resource.data.role));
+      allow delete: if isSelf(uid) || isTeam();
+    }
+
+    match /players/{id} {
+      allow read: if true;
+      allow write: if isTeam();
+    }
+
+    match /awardCategories/{id} {
+      allow read: if true;
+      allow write: if isTeam();
+    }
+
+    match /injuries/{id} {
+      allow read: if true;
+      allow write: if isTeam();
+    }
+
+    match /games/{gameId} {
+      allow read: if true;
+      allow write: if isTeam();
+
+      match /stats/{playerId} {
+        allow read: if true;
+        allow write: if isTeam();
+      }
+
+      match /rsvps/{playerId} {
+        allow read: if true;
+        allow write: if isTeam();
+      }
+
+      // One vote per voter per award: the doc id is {voterId}_{categoryId}.
+      // Players vote as their player id, everyone else as their sign-in.
+      match /votes/{voteId} {
+        allow read: if true;
+        allow create, update: if isMember()
+          && request.resource.data.keys().hasOnly(['gameId', 'categoryId', 'voterId', 'nomineeId'])
+          && request.resource.data.gameId == gameId
+          && request.resource.data.voterId in [request.auth.uid, myPlayerId()]
+          && voteId == request.resource.data.voterId + '_' + request.resource.data.categoryId
+          && request.resource.data.nomineeId is string
+          && request.resource.data.nomineeId != myPlayerId()
+          && (resource == null || resource.data.voterId == request.resource.data.voterId);
+        allow delete: if isTeam() || (isMember() && resource.data.voterId in [request.auth.uid, myPlayerId()]);
+      }
+    }
+
+    // Collection-group queries (all stats/votes/RSVPs at once) need their own read rules.
+    match /{path=**}/stats/{playerId} { allow read: if true; }
+    match /{path=**}/votes/{voteId} { allow read: if true; }
+    match /{path=**}/rsvps/{playerId} { allow read: if true; }
   }
 }

@@ -1,45 +1,61 @@
-import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase.js';
+import { html, nothing } from 'lit-html';
 import { state } from '../store.js';
-import { awardWins } from '../awards.js';
-import { isEditor } from '../auth.js';
-import { esc, playerName } from '../util.js';
+import { isTeam } from '../auth.js';
+import { addCategory, removeCategory } from '../actions.js';
+import { awardWins, latestWinners } from '../awards.js';
+import { isFinal } from '../stats.js';
+import { icon } from '../ui.js';
+import { fmtDate, playerName } from '../util.js';
 
-export function render(root) {
-  const wins = awardWins(state.games, state.categories, state.votes);
+export const meta = { tab: 'awards' };
 
-  root.innerHTML = `<section class="card">
-    <h2>Awards</h2>
-    ${state.categories.map((c) => {
-      const board = Object.entries(wins[c.id] || {}).sort((a, b) => b[1] - a[1]);
-      return `<div class="award">
-        <div class="between"><h3>${esc(c.name)}</h3>
-          ${c.isDefault || !isEditor() ? '' : `<button class="link danger-text" data-del="${c.id}">Remove</button>`}</div>
-        ${board.length ? `<div>${board.map(([id, n]) => `${esc(playerName(state.players, id))}: <strong>${n}</strong>`).join(' · ')}</div>` : '<div class="muted">No winners yet</div>'}
-      </div>`;
-    }).join('')}
-  </section>
-  ${isEditor() ? `<section class="card">
-    <h3>Add a custom award</h3>
-    <form id="cat-form" class="row">
-      <input name="name" placeholder="e.g. Best Hustle" required />
-      <button class="btn">Add</button>
-    </form>
-  </section>` : ''}`;
+const byImportance = (a, b) => Number(Boolean(b.isDefault)) - Number(Boolean(a.isDefault)) || a.name.localeCompare(b.name);
 
-  const catForm = root.querySelector('#cat-form');
-  if (catForm) {
-    catForm.onsubmit = async (e) => {
-      e.preventDefault();
-      const name = e.target.name.value.trim();
-      if (name) await addDoc(collection(db, 'awardCategories'), { name, isDefault: false });
-    };
-  }
-  root.querySelectorAll('[data-del]').forEach((b) => {
-    b.onclick = async () => {
-      if (confirm('Remove this award? Existing votes for it stop counting.')) {
-        await deleteDoc(doc(db, 'awardCategories', b.dataset.del));
-      }
-    };
-  });
+export function view() {
+  const wins = awardWins(state.games.filter(isFinal), state.categories, state.votes);
+  const categories = [...state.categories].sort(byImportance);
+  return html`
+    <h1>Awards</h1>
+    ${categories.length ? categories.map((c) => standings(c, wins[c.id] || {})) : html`<section class="card"><p class="muted">No awards yet.</p></section>`}
+    ${isTeam() ? addForm() : nothing}`;
 }
+
+function remove(category) {
+  if (confirm(`Remove "${category.name}"? Its votes are deleted too.`)) removeCategory(category.id);
+}
+
+function standings(category, board) {
+  const rows = Object.entries(board).sort((a, b) => b[1] - a[1] || playerName(state.players, a[0]).localeCompare(playerName(state.players, b[0])));
+  const latest = latestWinners(state.games, state.votes, category.id);
+  return html`<section class="card flush">
+    <div class="card-head">
+      <h2>${category.name}</h2>
+      ${category.isDefault || !isTeam() ? nothing : html`<button class="btn danger-ghost sm" @click=${() => remove(category)}>Remove</button>`}
+    </div>
+    ${latest
+      ? html`<p class="pad muted">Latest: ${latest.winners.map((id) => playerName(state.players, id)).join(' & ')} vs ${latest.game.opponent}, ${fmtDate(latest.game.date, { weekday: false })}</p>`
+      : nothing}
+    ${rows.length
+      ? html`<ul class="list">${rows.map(([id, count], i) => html`<li><a class="row-link" href="#/players/${id}">
+          <span class="lb-rank">${i + 1}</span>
+          <span class="grow"><strong class="ellipsis">${playerName(state.players, id)}</strong></span>
+          <strong class="num">${count}×</strong>
+          ${icon('chevron', 'chev')}
+        </a></li>`)}</ul>`
+      : html`<p class="pad muted">No winners yet. Vote on a game's page after it's played.</p>`}
+  </section>`;
+}
+
+const addForm = () => html`<section class="card">
+  <h2>Add a custom award</h2>
+  <form class="row" @submit=${(e) => {
+    e.preventDefault();
+    const input = e.currentTarget.elements.namedItem('award');
+    if (!input.value.trim()) return;
+    addCategory(input.value);
+    input.value = '';
+  }}>
+    <input name="award" placeholder="e.g. Best Hustle" maxlength="40" autocomplete="off" />
+    <button class="btn">Add</button>
+  </form>
+</section>`;

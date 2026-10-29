@@ -1,77 +1,99 @@
-import { doc, setDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebase.js';
+import { signInAnonymously, signOut } from 'firebase/auth';
+import { deleteDoc, doc, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { auth, db } from './firebase.js';
 import { state } from './store.js';
 
-// Identity is just localStorage: the group code that was accepted and the
-// player the visitor picked. Storage can throw (private windows), so guard it.
-const get = (k) => {
-  try { return localStorage.getItem(k); } catch { return null; }
-};
-const set = (k, v) => {
-  try {
-    if (v == null) localStorage.removeItem(k);
-    else localStorage.setItem(k, v);
-  } catch { /* ignore */ }
-};
+// Anyone with the link can look around. Joining signs this device in
+// anonymously (no account or password) and proves the code to Firestore's
+// security rules, which compare it against config/group. No browser can read
+// that doc, so the codes never leave the server.
+//
+// Roles: 'team' (players and whoever keeps score) can change anything; 'fan'
+// can vote for awards.
 
-// Role is derived from the stored code each time, so changing a code in
-// Firestore revokes old access without any cleanup.
-export function role() {
-  const code = get('hoops.code');
-  if (!code || state.group == null) return null;
-  if (code === state.group.code) return 'editor';
-  if (state.group.viewerCode && code === state.group.viewerCode) return 'viewer';
+export const role = () => state.member?.role ?? null;
+export const isTeam = () => role() === 'team';
+export const isMember = () => role() != null;
+export const myPlayerId = () => (isTeam() && state.member?.playerId) || null;
+// Players vote as their player (one vote per player, whatever the device);
+// everyone else votes as this device.
+export const voterKey = () => myPlayerId() || state.uid;
+
+// The previous version kept the code and chosen player in localStorage; use them
+// to pre-fill the join form once.
+const readLegacy = (k) => {
+  try {
+    return localStorage.getItem(k);
+  } catch {
+    return null;
+  }
+};
+export const legacyCode = () => readLegacy('hoops.code') || '';
+export const legacyPlayerId = () => {
+  const id = readLegacy('hoops.me');
+  return id && !id.startsWith('guest-') ? id : null;
+};
+function clearLegacy() {
+  try {
+    ['hoops.code', 'hoops.guest'].forEach((k) => localStorage.removeItem(k));
+  } catch { /* ignore */ }
+}
+export function clearLegacyPlayer() {
+  try {
+    localStorage.removeItem('hoops.me');
+  } catch { /* ignore */ }
+}
+
+async function signIn() {
+  if (!auth.currentUser) await signInAnonymously(auth);
+  return auth.currentUser.uid;
+}
+
+// The rules accept the member doc only if the code written to joins/{uid} in
+// the same batch matches the code for that role.
+function joinBatch(uid, code, joinRole) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'joins', uid), { code });
+  batch.set(doc(db, 'members', uid), { role: joinRole, joinedAt: serverTimestamp() }, { merge: true });
+  return batch;
+}
+
+// Tries the code as the team code, then as the fan code. Resolves to the role
+// joined, or null when it matches neither.
+export async function join(code) {
+  const trimmed = code.trim();
+  if (!trimmed) return null;
+  const uid = await signIn();
+  for (const joinRole of ['team', 'fan']) {
+    try {
+      await joinBatch(uid, trimmed, joinRole).commit();
+      clearLegacy();
+      return joinRole;
+    } catch (err) {
+      if (err.code !== 'permission-denied') throw err;
+    }
+  }
   return null;
 }
-export const hasAccess = () => role() != null;
-export const isEditor = () => role() === 'editor';
-export const myId = () => get('hoops.me');
-// Viewers who aren't on the roster are guests: a name kept only in this
-// browser, never written to `players`, so they don't appear in stats or lists.
-export const isGuest = () => (myId() || '').startsWith('guest-');
-export const me = () => {
-  if (isGuest()) return { id: myId(), name: get('hoops.guest') || 'Guest' };
-  return state.players.find((p) => p.id === myId()) || null;
-};
 
-export function enterAsGuest(name) {
-  set('hoops.guest', name.trim());
-  set('hoops.me', 'guest-' + Math.random().toString(36).slice(2, 10));
+// First-time setup: stores the codes and makes this device the first team
+// member. The rules only allow it while no team exists yet.
+export async function createTeam({ teamName, code, fanCode }) {
+  const uid = await signIn();
+  const batch = joinBatch(uid, code, 'team');
+  batch.set(doc(db, 'config', 'group'), { code, viewerCode: fanCode });
+  await batch.commit();
+  await setDoc(doc(db, 'config', 'public'), { teamName }, { merge: true });
+  clearLegacy();
 }
 
-export async function enterCode(code) {
-  const trimmed = code.trim();
-  if (!trimmed) return false;
-  if (state.group == null) {
-    // First visitor chooses the group code.
-    await setDoc(doc(db, 'config', 'group'), { code: trimmed });
-    set('hoops.code', trimmed);
-    return true;
-  }
-  const ok = trimmed === state.group.code || (state.group.viewerCode && trimmed === state.group.viewerCode);
-  if (!ok) return false;
-  set('hoops.code', trimmed);
-  return true;
-}
+export const claimPlayer = (playerId) => updateDoc(doc(db, 'members', state.uid), { playerId });
+export const setMyName = (name) => updateDoc(doc(db, 'members', state.uid), { name: name.trim() });
 
-// Empty string removes the viewer code.
-export async function setViewerCode(code) {
-  const viewerCode = code.trim();
-  await setDoc(doc(db, 'config', 'group'), { viewerCode }, { merge: true });
-}
-
-export const pickPlayer = (id) => set('hoops.me', id);
-
-export function signOut() {
-  set('hoops.me', null);
-  set('hoops.guest', null);
-  set('hoops.code', null);
-}
-
-export async function addPlayer(name) {
-  const ref = await addDoc(collection(db, 'players'), {
-    name: name.trim(),
-    createdAt: serverTimestamp(),
-  });
-  return ref.id;
+// Takes this device off the team and signs it out. Needs a connection, since
+// the delete has to reach the server before the sign-in goes away.
+export async function leave() {
+  if (state.uid && state.member) await deleteDoc(doc(db, 'members', state.uid));
+  await signOut(auth);
+  clearLegacyPlayer();
 }

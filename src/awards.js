@@ -1,4 +1,8 @@
 // Vote tallies. Votes carry { gameId, categoryId, voterId, nomineeId }.
+import { finals, isFinal } from './stats.js';
+
+// Doc id for a vote, so each voter has at most one vote per award per game.
+export const voteId = (voterId, categoryId) => `${voterId}_${categoryId}`;
 
 export function tally(votes, gameId, categoryId) {
   const counts = {};
@@ -29,4 +33,22 @@ export function awardWins(games, categories, votes) {
     }
   }
   return out;
+}
+
+// Awards one player has won, e.g. [{ category, count: 2 }], biggest first.
+export function playerAwards(playerId, games, categories, votes) {
+  const wins = awardWins(games.filter(isFinal), categories, votes);
+  return categories
+    .map((category) => ({ category, count: wins[category.id]?.[playerId] || 0 }))
+    .filter((a) => a.count)
+    .sort((a, b) => b.count - a.count);
+}
+
+// The most recent finished game where this award has a winner.
+export function latestWinners(games, votes, categoryId) {
+  for (const game of finals(games)) {
+    const won = winners(tally(votes, game.id, categoryId));
+    if (won.length) return { game, winners: won };
+  }
+  return null;
 }
