@@ -32,12 +32,14 @@ export function boxScore(game) {
   if (!rows.length) return null;
   const keys = STAT_KEYS.filter((k) => rows.some((r) => r[k] != null));
   const total = (k) => (rows.some((r) => r[k] != null) ? rows.reduce((n, r) => n + (r[k] ?? 0), 0) : null);
+  // Everyone on the court shares each basket's plus-minus, so it has no team total.
+  const footer = (k) => (k === 'plusMinus' ? '' : fmtStat(total(k)));
   return html`<div class="scroll"><table class="box">
     <thead><tr><th scope="col">Player</th>${keys.map((k) => html`<th scope="col">${STAT_LABELS[k]}</th>`)}</tr></thead>
     <tbody>${rows.map((r) => html`<tr>
-      <td><a href="#/players/${r.playerId}">${r.name}</a></td>${keys.map((k) => html`<td>${fmtStat(r[k])}</td>`)}
+      <td><a href="#/players/${r.playerId}">${r.name}</a></td>${keys.map((k) => html`<td>${fmtStat(r[k], k)}</td>`)}
     </tr>`)}</tbody>
-    <tfoot><tr><td>${teamName()}</td>${keys.map((k) => html`<td>${fmtStat(total(k))}</td>`)}</tr></tfoot>
+    <tfoot><tr><td>${teamName()}</td>${keys.map((k) => html`<td>${footer(k)}</td>`)}</tr></tfoot>
   </table></div>
   ${rows.some((r) => keys.some((k) => r[k] == null)) ? html`<small class="muted">— = not tracked</small>` : nothing}`;
 }

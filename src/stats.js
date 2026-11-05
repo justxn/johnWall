@@ -2,10 +2,20 @@
 // treated as 0.
 import { normName } from './util.js';
 
-export const STAT_KEYS = ['points', 'rebounds', 'assists', 'steals', 'blocks', 'minutes'];
-export const STAT_LABELS = { points: 'PTS', rebounds: 'REB', assists: 'AST', steals: 'STL', blocks: 'BLK', minutes: 'MIN' };
-export const AVG_LABELS = { points: 'PPG', rebounds: 'RPG', assists: 'APG', steals: 'SPG', blocks: 'BPG', minutes: 'MPG' };
-export const STAT_NAMES = { points: 'Points', rebounds: 'Rebounds', assists: 'Assists', steals: 'Steals', blocks: 'Blocks', minutes: 'Minutes' };
+export const STAT_KEYS = ['points', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'minutes', 'plusMinus'];
+export const STAT_LABELS = {
+  points: 'PTS', rebounds: 'REB', assists: 'AST', steals: 'STL', blocks: 'BLK', turnovers: 'TOV', minutes: 'MIN', plusMinus: '+/-',
+};
+export const AVG_LABELS = {
+  points: 'PPG', rebounds: 'RPG', assists: 'APG', steals: 'SPG', blocks: 'BPG', turnovers: 'TOPG', minutes: 'MPG', plusMinus: '+/-',
+};
+export const STAT_NAMES = {
+  points: 'Points', rebounds: 'Rebounds', assists: 'Assists', steals: 'Steals', blocks: 'Blocks', turnovers: 'Turnovers', minutes: 'Minutes', plusMinus: 'Plus-minus',
+};
+
+// These come from who's on the court during a live game, not from taps.
+// Plus-minus is the score difference while a player is out there.
+export const COURT_STATS = ['minutes', 'plusMinus'];
 
 // Games saved before scheduling existed have no status; they're all results.
 export const statusOf = (game) => game.status || 'final';
@@ -134,5 +144,25 @@ export function pointsCheck(teamScore, lines) {
   return sum === teamScore ? null : { sum, teamScore };
 }
 
-export const fmtAvg = (v) => (v == null ? '—' : v.toFixed(1));
-export const fmtStat = (v) => (v == null ? '—' : String(v));
+// Reads a typed-in stat. Blank (or junk) means "not tracked". Plus-minus can be
+// negative and may be typed with a sign ("+3", "-2", "−2"); everything else is
+// a count, so it can't go below 0.
+export function parseStat(raw, key) {
+  const s = String(raw ?? '').trim().replace(/^[−–]/, '-');
+  if (s === '') return null;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return null;
+  if (key === 'plusMinus') return Math.trunc(n) || 0; // `|| 0` turns -0 into 0
+  return n >= 0 ? Math.floor(n) : null;
+}
+
+// Plus-minus always shows its sign (+3, -2, 0), never "-0.0".
+function signed(text) {
+  const n = Number(text);
+  if (n > 0) return `+${text}`;
+  return n === 0 ? text.replace('-', '') : text;
+}
+
+// Pass the stat key so plus-minus gets its sign.
+export const fmtAvg = (v, key) => (v == null ? '—' : key === 'plusMinus' ? signed(v.toFixed(1)) : v.toFixed(1));
+export const fmtStat = (v, key) => (v == null ? '—' : key === 'plusMinus' ? signed(String(v)) : String(v));

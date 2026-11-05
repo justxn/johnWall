@@ -2,7 +2,7 @@ import { html, nothing } from 'lit-html';
 import { repeat } from 'lit-html/directives/repeat.js';
 import { findGame, gameStats, sortedPlayers, state, teamName } from '../store.js';
 import { newGameId, saveResult, saveScheduled } from '../actions.js';
-import { STAT_KEYS, STAT_LABELS, byDateAsc, byDateDesc, pointsCheck, statusOf } from '../stats.js';
+import { STAT_KEYS, STAT_LABELS, byDateAsc, byDateDesc, parseStat, pointsCheck, statusOf } from '../stats.js';
 import { backLink, rerender } from '../ui.js';
 import { todayISO } from '../util.js';
 
@@ -17,12 +17,6 @@ export function enter() {
 }
 
 const val = (v) => (v == null ? '' : String(v));
-const toNum = (v) => {
-  const s = String(v ?? '').trim();
-  if (s === '') return null; // blank = not tracked
-  const n = Number(s);
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
-};
 
 const plusDays = (iso, days) => {
   const [y, m, d] = iso.split('-').map(Number);
@@ -120,18 +114,35 @@ function entry(player) {
       <span class="sr-only">Played</span>
     </label>
     <div class="statgrid">
-      ${STAT_KEYS.map((k) => html`<label>${STAT_LABELS[k]}
-        <input name="${k}:${player.id}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" value=${val(line[k])} />
-      </label>`)}
+      ${STAT_KEYS.map((k) => (k === 'plusMinus'
+        ? plusMinusField(player, line)
+        : html`<label>${STAT_LABELS[k]}
+            <input name="${k}:${player.id}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" value=${val(line[k])} />
+          </label>`))}
     </div>
   </div>`;
+}
+
+// Phone number pads have no minus key, so plus-minus gets a ± button.
+const plusMinusField = (player, line) => html`<div class="pm-field">
+  <label>${STAT_LABELS.plusMinus}
+    <input name="plusMinus:${player.id}" inputmode="numeric" autocomplete="off" enterkeyhint="next" value=${val(line.plusMinus)} />
+  </label>
+  <button type="button" class="btn secondary sign-flip" aria-label="Flip the sign of ${player.name}'s plus-minus" @click=${flipSign}>±</button>
+</div>`;
+
+function flipSign(e) {
+  const input = e.currentTarget.closest('.pm-field').querySelector('input');
+  const s = input.value.trim().replace(/^\+/, '');
+  input.value = /^[-−–]/.test(s) ? s.slice(1) : `-${s}`;
+  input.focus();
 }
 
 // Re-check the "points don't add up" warning as people type.
 function onInput(e) {
   const fd = new FormData(e.currentTarget);
-  const lines = [...form.played].map((pid) => ({ points: toNum(fd.get(`points:${pid}`)) }));
-  const next = pointsCheck(toNum(fd.get('teamScore')), lines);
+  const lines = [...form.played].map((pid) => ({ points: parseStat(fd.get(`points:${pid}`)) }));
+  const next = pointsCheck(parseStat(fd.get('teamScore')), lines);
   if (JSON.stringify(next) !== JSON.stringify(form.mismatch)) {
     form.mismatch = next;
     rerender();
@@ -186,15 +197,15 @@ function submitResult(e) {
   const fd = new FormData(e.currentTarget);
   const opponent = String(fd.get('opponent')).trim();
   const date = String(fd.get('date'));
-  const teamScore = toNum(fd.get('teamScore'));
-  const opponentScore = toNum(fd.get('opponentScore'));
+  const teamScore = parseStat(fd.get('teamScore'));
+  const opponentScore = parseStat(fd.get('opponentScore'));
   if (!opponent || !date) return fail('Add who you played and the date.');
   if (teamScore == null || opponentScore == null) return fail('Enter both scores.');
   if (teamScore === opponentScore) return fail('It can\'t end in a tie. One team has to win.');
 
   const lines = {};
   for (const p of state.players) {
-    if (form.played.has(p.id)) lines[p.id] = Object.fromEntries(STAT_KEYS.map((k) => [k, toNum(fd.get(`${k}:${p.id}`))]));
+    if (form.played.has(p.id)) lines[p.id] = Object.fromEntries(STAT_KEYS.map((k) => [k, parseStat(fd.get(`${k}:${p.id}`), k)]));
     else if (form.lines[p.id]) lines[p.id] = null; // was in the box score, switched off now
   }
   const fields = {

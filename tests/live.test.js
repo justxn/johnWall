@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockMs, clockToggle, courtToggle, finalMinutes, playedMs } from '../src/live.js';
+import { clockMs, clockToggle, courtToggle, courtUsed, finalMinutes, playedMs, plusMinusCourt } from '../src/live.js';
 
 // Applies a { set, remove } update to a plain object, the way Firestore would.
 function apply(doc, { set, remove }) {
@@ -47,5 +47,40 @@ describe('minutes', () => {
   it('rounds to whole minutes', () => {
     const live = { clockBase: 90_000, clockStartedAt: null, onCourt: { a: 0 }, played: {} };
     expect(finalMinutes(live, ['a'])).toEqual({ a: 2 });
+  });
+});
+
+describe('plus-minus', () => {
+  const fresh = (tracked = ['points', 'plusMinus']) => ({ live: { clockBase: 0, clockStartedAt: null, onCourt: {}, played: {}, tracked } });
+  const everyone = ['a', 'b', 'c'];
+
+  it('gives each basket to whoever is on the court at the time', () => {
+    const pm = { a: 0, b: 0, c: 0 };
+    const basket = (doc, n) => plusMinusCourt(doc.live, everyone).forEach((id) => { pm[id] += n; });
+    let doc = fresh();
+    doc = apply(doc, courtToggle(doc.live, 'a', 0));
+    doc = apply(doc, courtToggle(doc.live, 'b', 0));
+    basket(doc, 2); // we score 2 with a and b out there
+    doc = apply(doc, courtToggle(doc.live, 'b', 0)); // b subs out...
+    doc = apply(doc, courtToggle(doc.live, 'c', 0)); // ...for c
+    basket(doc, -3); // they score 3
+    expect(pm).toEqual({ a: -1, b: 2, c: -3 });
+  });
+
+  it('does nothing when plus-minus is not tracked', () => {
+    let doc = fresh(['points', 'minutes']);
+    doc = apply(doc, courtToggle(doc.live, 'a', 0));
+    expect(plusMinusCourt(doc.live, everyone)).toEqual([]);
+    expect(plusMinusCourt(undefined, everyone)).toEqual([]);
+  });
+
+  it('knows whether anyone was ever put on the court', () => {
+    let doc = fresh();
+    expect(courtUsed(doc.live)).toBe(false);
+    expect(courtUsed(undefined)).toBe(false);
+    doc = apply(doc, courtToggle(doc.live, 'a', 0));
+    expect(courtUsed(doc.live)).toBe(true);
+    doc = apply(doc, courtToggle(doc.live, 'a', 0)); // and back to the bench
+    expect(courtUsed(doc.live)).toBe(true);
   });
 });

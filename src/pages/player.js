@@ -3,7 +3,7 @@ import { findGame, findPlayer, injuryOf, state } from '../store.js';
 import { isTeam, myPlayerId } from '../auth.js';
 import { updatePlayer } from '../actions.js';
 import { playerAwards } from '../awards.js';
-import { AVG_LABELS, STAT_KEYS, STAT_LABELS, STAT_NAMES, careerHighs, finalStats, fmtAvg, gameLog, playerLine } from '../stats.js';
+import { AVG_LABELS, STAT_KEYS, STAT_LABELS, STAT_NAMES, careerHighs, finalStats, fmtAvg, fmtStat, gameLog, playerLine } from '../stats.js';
 import { avatar, backLink, icon, injuryLabel, injuryPill, rerender, resultPill } from '../ui.js';
 import { fmtDate } from '../util.js';
 import { injuryItem, openInjurySheet } from './injuries.js';
@@ -77,13 +77,14 @@ function archetype(player) {
 const tiles = (line) => html`<div class="tiles">
   ${STAT_KEYS.map((k) => html`<div class="tile">
     <small class="muted">${AVG_LABELS[k]}</small>
-    <strong>${fmtAvg(line.avg[k])}</strong>
-    <span class="hint">${line.tracked[k] === 0 ? 'not tracked' : line.tracked[k] < line.gp ? `${line.tracked[k]} of ${line.gp} games` : `${line.total[k]} total`}</span>
+    <strong>${fmtAvg(line.avg[k], k)}</strong>
+    <span class="hint">${line.tracked[k] === 0 ? 'not tracked' : line.tracked[k] < line.gp ? `${line.tracked[k]} of ${line.gp} games` : `${fmtStat(line.total[k], k)} total`}</span>
   </div>`)}
 </div>`;
 
+// Turnovers are left out: a high there isn't something to show off.
 function highsCard(highs) {
-  const keys = STAT_KEYS.filter((k) => highs[k]?.value > 0 && findGame(highs[k].gameId));
+  const keys = STAT_KEYS.filter((k) => k !== 'turnovers' && highs[k]?.value > 0 && findGame(highs[k].gameId));
   if (!keys.length) return nothing;
   return html`<section class="card flush">
     <div class="card-head"><h2>Career highs</h2></div>
@@ -91,7 +92,7 @@ function highsCard(highs) {
       ${keys.map((k) => {
         const g = findGame(highs[k].gameId);
         return html`<li><a class="row-link" href="#/games/${g.id}">
-          <span class="grow"><strong>${highs[k].value} ${STAT_NAMES[k].toLowerCase()}</strong><small class="muted">vs ${g.opponent} · ${fmtDate(g.date)}</small></span>
+          <span class="grow"><strong>${fmtStat(highs[k].value, k)} ${STAT_NAMES[k].toLowerCase()}</strong><small class="muted">vs ${g.opponent} · ${fmtDate(g.date)}</small></span>
           ${icon('chevron', 'chev')}
         </a></li>`;
       })}
@@ -118,7 +119,7 @@ const logCard = (log) =>
               <strong class="ellipsis">vs ${game.opponent}</strong>
               <small class="muted">${game.teamScore}–${game.opponentScore} · ${fmtDate(game.date, { weekday: false })}</small>
             </span>
-            <small class="muted">${STAT_KEYS.filter((k) => line[k] != null).map((k) => `${line[k]} ${STAT_LABELS[k]}`).join(' · ') || 'No stats tracked'}</small>
+            <small class="muted">${STAT_KEYS.filter((k) => line[k] != null).map((k) => `${fmtStat(line[k], k)} ${STAT_LABELS[k]}`).join(' · ') || 'No stats tracked'}</small>
           </a>`)}
         </div>
       </section>`

@@ -3,7 +3,7 @@ import { activeInjuries, injuryOf, sortedPlayers, state } from '../store.js';
 import { isTeam } from '../auth.js';
 import { addPlayer } from '../actions.js';
 import { awardWins } from '../awards.js';
-import { AVG_LABELS, STAT_KEYS, STAT_LABELS, STAT_NAMES, finalStats, fmtAvg, isFinal, leaders, playerLine } from '../stats.js';
+import { AVG_LABELS, STAT_KEYS, STAT_LABELS, STAT_NAMES, finalStats, fmtAvg, fmtStat, isFinal, leaders, playerLine } from '../stats.js';
 import { icon, injuryPill, openSheet, rerender, segmented, toast } from '../ui.js';
 import { normName } from '../util.js';
 
@@ -70,7 +70,7 @@ function ranking() {
     .sort((a, b) => b.value - a.value || a.player.name.localeCompare(b.player.name));
 }
 
-const shown = (value) => (stat === 'awards' || totals ? String(value) : fmtAvg(value));
+const shown = (value) => (stat === 'awards' ? String(value) : totals ? fmtStat(value, stat) : fmtAvg(value, stat));
 
 function sub(row) {
   const { gp, tracked } = row.line;

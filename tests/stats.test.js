@@ -3,10 +3,13 @@ import {
   byDateDesc,
   careerHighs,
   finalStats,
+  fmtAvg,
+  fmtStat,
   gameLog,
   headToHead,
   leaders,
   needsResult,
+  parseStat,
   playerLine,
   pointsCheck,
   record,
@@ -120,6 +123,82 @@ describe('player stats', () => {
 
   it('builds a newest-first game log of finished games', () => {
     expect(gameLog('p1', stats, games).map((r) => r.game.id)).toEqual(['g2', 'g1']);
+  });
+});
+
+describe('turnovers and plus-minus', () => {
+  const games = [game('g1', '2026-10-01', 21, 10), game('g2', '2026-10-08', 15, 21)];
+  const stats = [
+    { gameId: 'g1', playerId: 'p1', points: 4, turnovers: 2, plusMinus: 11 },
+    { gameId: 'g2', playerId: 'p1', points: 6, turnovers: 0, plusMinus: -6 },
+    { gameId: 'g1', playerId: 'p2', points: 9, turnovers: 1, plusMinus: -2 },
+    { gameId: 'g2', playerId: 'p2', points: 2, turnovers: null, plusMinus: -3 },
+  ];
+  const players = [{ id: 'p1', name: 'Marcus' }, { id: 'p2', name: 'Devon' }];
+
+  it('averages plus-minus through negatives', () => {
+    const line = playerLine('p1', stats);
+    expect(line.avg.plusMinus).toBe(2.5);
+    expect(line.total.plusMinus).toBe(5);
+    expect(playerLine('p2', stats).avg.plusMinus).toBe(-2.5);
+  });
+
+  it('averages turnovers over the games they were tracked', () => {
+    const line = playerLine('p2', stats);
+    expect(line.tracked.turnovers).toBe(1);
+    expect(line.avg.turnovers).toBe(1);
+  });
+
+  it('ranks plus-minus best first, below zero included', () => {
+    expect(leaders(players, stats, 'plusMinus').map((r) => [r.player.id, r.value])).toEqual([['p1', 2.5], ['p2', -2.5]]);
+    expect(leaders(players, stats, 'plusMinus', { totals: true }).map((r) => r.value)).toEqual([5, -5]);
+  });
+
+  it('finds the best plus-minus game, even when every game was negative', () => {
+    expect(careerHighs('p1', stats, games).plusMinus).toEqual({ value: 11, gameId: 'g1' });
+    expect(careerHighs('p2', stats, games).plusMinus).toEqual({ value: -2, gameId: 'g1' });
+  });
+});
+
+describe('parseStat', () => {
+  it('reads counts, treating blanks and junk as not tracked', () => {
+    expect(parseStat('7')).toBe(7);
+    expect(parseStat(' 3 ', 'turnovers')).toBe(3);
+    expect(parseStat('2.9')).toBe(2);
+    expect(parseStat('')).toBeNull();
+    expect(parseStat(null)).toBeNull();
+    expect(parseStat('lots')).toBeNull();
+    expect(parseStat('-2', 'turnovers')).toBeNull();
+  });
+
+  it('lets plus-minus go below zero, however the sign is typed', () => {
+    expect(parseStat('-4', 'plusMinus')).toBe(-4);
+    expect(parseStat('−4', 'plusMinus')).toBe(-4); // the real minus sign some keyboards type
+    expect(parseStat('+6', 'plusMinus')).toBe(6);
+    expect(parseStat('6', 'plusMinus')).toBe(6);
+    expect(parseStat('-2.5', 'plusMinus')).toBe(-2);
+    expect(Object.is(parseStat('-0', 'plusMinus'), 0)).toBe(true);
+    expect(parseStat('-', 'plusMinus')).toBeNull(); // the ± button was tapped but nothing typed
+    expect(parseStat('', 'plusMinus')).toBeNull();
+  });
+});
+
+describe('formatting', () => {
+  it('shows plus-minus with its sign', () => {
+    expect(fmtStat(5, 'plusMinus')).toBe('+5');
+    expect(fmtStat(-3, 'plusMinus')).toBe('-3');
+    expect(fmtStat(0, 'plusMinus')).toBe('0');
+    expect(fmtStat(null, 'plusMinus')).toBe('—');
+    expect(fmtAvg(2.5, 'plusMinus')).toBe('+2.5');
+    expect(fmtAvg(-1, 'plusMinus')).toBe('-1.0');
+    expect(fmtAvg(-0.02, 'plusMinus')).toBe('0.0'); // not "-0.0"
+  });
+
+  it('leaves other stats unsigned', () => {
+    expect(fmtStat(5, 'points')).toBe('5');
+    expect(fmtStat(5)).toBe('5');
+    expect(fmtAvg(1.25, 'turnovers')).toBe((1.25).toFixed(1));
+    expect(fmtAvg(null)).toBe('—');
   });
 });
 

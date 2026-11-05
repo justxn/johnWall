@@ -14,7 +14,7 @@ import { gameStats, state } from './store.js';
 import { voteId } from './awards.js';
 import { voterKey } from './auth.js';
 import { STAT_KEYS } from './stats.js';
-import { clockToggle, courtToggle, finalMinutes } from './live.js';
+import { clockToggle, courtToggle, courtUsed, finalMinutes } from './live.js';
 import { toast } from './ui.js';
 
 // Firestore applies writes on this device right away (and queues them while
@@ -110,14 +110,25 @@ export const addLivePlayer = (game, playerId) =>
   send(setDoc(statRef(game.id, playerId), zeroLine(game.id, playerId, game.live?.tracked ?? STAT_KEYS)), 'Player');
 
 // Points also move the team score, so the box score and the final always agree.
-export function scorePlayer(gameId, playerId, stat, n) {
+// `court` is who was on the floor for a basket (from plusMinusCourt): it goes
+// into each of their plus-minus. Undo passes the same players back with -n.
+export function scorePlayer(gameId, playerId, stat, n, court = []) {
   const batch = writeBatch(db);
-  batch.update(statRef(gameId, playerId), { [stat]: increment(n) });
-  if (stat === 'points') batch.update(gameRef(gameId), { teamScore: increment(n) });
+  const changes = { [playerId]: { [stat]: increment(n) } };
+  if (stat === 'points') {
+    batch.update(gameRef(gameId), { teamScore: increment(n) });
+    for (const pid of court) changes[pid] = { ...changes[pid], plusMinus: increment(n) };
+  }
+  for (const [pid, fields] of Object.entries(changes)) batch.update(statRef(gameId, pid), fields);
   return send(batch.commit(), 'Score');
 }
 
-export const scoreOpponent = (gameId, n) => send(updateDoc(gameRef(gameId), { opponentScore: increment(n) }), 'Score');
+export function scoreOpponent(gameId, n, court = []) {
+  const batch = writeBatch(db);
+  batch.update(gameRef(gameId), { opponentScore: increment(n) });
+  for (const pid of court) batch.update(statRef(gameId, pid), { plusMinus: increment(-n) });
+  return send(batch.commit(), 'Score');
+}
 
 function applyLive(gameId, { set, remove }) {
   const update = { ...set };
@@ -129,12 +140,19 @@ function applyLive(gameId, { set, remove }) {
 export const toggleClock = (game) => applyLive(game.id, clockToggle(game.live));
 export const toggleCourt = (game, playerId) => applyLive(game.id, courtToggle(game.live, playerId));
 
+// Minutes get banked into the box score. If nobody was ever put on the court,
+// minutes and plus-minus are saved as "not tracked" instead of all zeros.
 export function finishLive(game) {
   const batch = writeBatch(db);
   const lines = gameStats(game.id);
-  if (game.live?.tracked?.includes('minutes')) {
-    const minutes = finalMinutes(game.live, lines.map((s) => s.playerId));
-    lines.forEach((s) => batch.update(statRef(game.id, s.id), { minutes: minutes[s.playerId] }));
+  const tracked = game.live?.tracked ?? [];
+  const used = courtUsed(game.live);
+  const minutes = finalMinutes(game.live, lines.map((s) => s.playerId));
+  for (const s of lines) {
+    const fields = {};
+    if (tracked.includes('minutes')) fields.minutes = used ? minutes[s.playerId] : null;
+    if (tracked.includes('plusMinus') && !used) fields.plusMinus = null;
+    if (Object.keys(fields).length) batch.update(statRef(game.id, s.id), fields);
   }
   batch.update(gameRef(game.id), { status: 'final', live: deleteField() });
   return send(batch.commit(), 'Final score');

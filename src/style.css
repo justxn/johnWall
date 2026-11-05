@@ -350,12 +350,15 @@ input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: n
 .statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .statgrid label { gap: 4px; font-size: .75rem; letter-spacing: .04em; text-align: center; }
 .statgrid input { text-align: center; font-weight: 700; padding: 8px 6px; min-height: 48px; }
+.statgrid .pm-field { grid-column: span 2; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.sign-flip { width: 48px; min-height: 48px; padding: 0; font-size: 1.25rem; font-weight: 800; }
 
 /* ---------- Tables ---------- */
 .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -16px; padding: 0 16px; }
 .box { width: 100%; border-collapse: collapse; font-size: .92rem; }
-.box th, .box td { padding: 10px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
-.box th { color: var(--muted); font-size: .75rem; font-weight: 700; letter-spacing: .04em; }
+/* Tight enough that all eight stat columns fit across most phones. */
+.box th, .box td { padding: 10px 4px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.box th { color: var(--muted); font-size: .75rem; font-weight: 700; letter-spacing: .02em; }
 .box th:first-child, .box td:first-child {
   text-align: left; position: sticky; left: 0; z-index: 1; background: var(--card);
   max-width: 132px; overflow: hidden; text-overflow: ellipsis; padding-left: 0;
@@ -437,6 +440,7 @@ input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: n
 .tap-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .tap-row.stats { grid-template-columns: repeat(4, 1fr); }
 .tap-row button { background: var(--card-2); color: var(--text); }
+.tap-row button.bad { color: var(--loss); } /* TOV, so it isn't mistaken for BLK next to it */
 .tap-row.points button { background: var(--accent); color: var(--on-accent); font-size: 1.1rem; }
 .tap-row button:active, .opp-buttons button:active { transform: scale(.96); filter: brightness(.9); }
 .flash { animation: flash .35s ease-out; }

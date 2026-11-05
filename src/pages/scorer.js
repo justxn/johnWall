@@ -12,8 +12,8 @@ import {
   toggleClock,
   toggleCourt,
 } from '../actions.js';
-import { STAT_KEYS, STAT_LABELS, statusOf } from '../stats.js';
-import { clockMs, clockRunning, isOnCourt, playedMs } from '../live.js';
+import { COURT_STATS, STAT_KEYS, STAT_LABELS, fmtStat, statusOf } from '../stats.js';
+import { clockMs, clockRunning, isOnCourt, playedMs, plusMinusCourt } from '../live.js';
 import { backLink, icon, injuryPill, livePill, rerender, toast } from '../ui.js';
 import { fmtClock, todayISO } from '../util.js';
 
@@ -117,7 +117,7 @@ function setupView(game) {
         </label>`)}
       </section>
       <section class="card stack">
-        <div><h2>What are you tracking?</h2><p class="hint">Points are always on. Minutes run off the game clock and who's on the court.</p></div>
+        <div><h2>What are you tracking?</h2><p class="hint">Points are always on. Minutes and +/- count while a player is set to On court (minutes only while the clock runs).</p></div>
         <div class="chips wrap">
           ${STAT_KEYS.filter((k) => k !== 'points').map((k) => {
             const on = setup.tracked.has(k);
@@ -158,16 +158,22 @@ function begin(e, game) {
 
 const buzz = () => navigator.vibrate?.(12);
 
+// Who's on the court right now, for plus-minus. Undo remembers this list, so
+// taking a basket back fixes the right players even after a sub.
+const court = (game) => plusMinusCourt(game.live, gameStats(game.id).map((s) => s.playerId));
+
 function tap(game, playerId, stat, n) {
-  scorePlayer(game.id, playerId, stat, n);
-  undo.push({ playerId, stat, n });
+  const onFloor = stat === 'points' ? court(game) : [];
+  scorePlayer(game.id, playerId, stat, n, onFloor);
+  undo.push({ playerId, stat, n, court: onFloor });
   buzz();
 }
 
 function opp(game, n) {
   if (n < 0 && !(game.opponentScore > 0)) return;
-  scoreOpponent(game.id, n);
-  undo.push({ opp: true, n });
+  const onFloor = court(game);
+  scoreOpponent(game.id, n, onFloor);
+  undo.push({ opp: true, n, court: onFloor });
   buzz();
 }
 
@@ -175,10 +181,10 @@ function undoLast(game) {
   const last = undo.pop();
   if (!last) return;
   if (last.opp) {
-    scoreOpponent(game.id, -last.n);
+    scoreOpponent(game.id, -last.n, last.court);
     toast(`Undid ${last.n > 0 ? '+' : ''}${last.n} for them`);
   } else {
-    scorePlayer(game.id, last.playerId, last.stat, -last.n);
+    scorePlayer(game.id, last.playerId, last.stat, -last.n, last.court);
     const what = last.stat === 'points' ? `+${last.n}` : STAT_LABELS[last.stat];
     toast(`Undid ${what} for ${findPlayer(last.playerId)?.name ?? 'player'}`);
   }
@@ -205,7 +211,8 @@ function tapCard(game, line, tracked) {
   const name = findPlayer(pid)?.name ?? 'Unknown';
   const on = isOnCourt(game.live, pid);
   const withMinutes = tracked.includes('minutes');
-  const counted = tracked.filter((k) => k !== 'minutes');
+  const withPlusMinus = tracked.includes('plusMinus');
+  const counted = tracked.filter((k) => !COURT_STATS.includes(k));
   const statButtons = counted.filter((k) => k !== 'points');
   return html`<section class="tap-card ${on ? 'on-court' : ''}">
     <div class="tap-head">
@@ -214,9 +221,10 @@ function tapCard(game, line, tracked) {
         <span class="tap-line">
           ${counted.map((k, i) => html`${i ? ' · ' : ''}<b>${line[k] ?? 0}</b> ${STAT_LABELS[k]}`)}
           ${withMinutes ? html` · <b>${fmtClock(playedMs(game.live, pid))}</b> MIN` : nothing}
+          ${withPlusMinus ? html` · <b>${fmtStat(line.plusMinus ?? 0, 'plusMinus')}</b> +/-` : nothing}
         </span>
       </div>
-      ${withMinutes
+      ${withMinutes || withPlusMinus
         ? html`<button class="court-toggle ${on ? 'on' : ''}" aria-pressed=${on ? 'true' : 'false'} @click=${() => toggleCourt(game, pid)}>
             ${on ? 'On court' : 'Bench'}
           </button>`
@@ -227,7 +235,7 @@ function tapCard(game, line, tracked) {
     </div>
     ${statButtons.length
       ? html`<div class="tap-row stats" style="grid-template-columns: repeat(${statButtons.length}, 1fr)">
-          ${statButtons.map((k) => html`<button aria-label="${name} ${STAT_LABELS[k]}" @click=${() => tap(game, pid, k, 1)}>${STAT_LABELS[k]}</button>`)}
+          ${statButtons.map((k) => html`<button class=${k === 'turnovers' ? 'bad' : ''} aria-label="${name} ${STAT_LABELS[k]}" @click=${() => tap(game, pid, k, 1)}>${STAT_LABELS[k]}</button>`)}
         </div>`
       : nothing}
   </section>`;
