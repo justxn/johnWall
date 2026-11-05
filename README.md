@@ -6,10 +6,10 @@ App for our intramural 3v3 basketball team: the schedule, live scorekeeping, box
 
 - **Home**: next game, season record and streak, team leaders, latest MVP, injury report, recent results.
 - **Games**: upcoming games, live games, results. Add a final score with a box score, or schedule a game.
-- **Live scoring**: for each player, tap +1 (inside the arc), +2 (behind it) or FT, Miss under any shot, and REB, AST, STL, BLK and TOV; the team score adds itself up. Bench/On-court toggles track plus-minus (+/-), and with the game clock, minutes. Undo fixes mis-taps, and anyone with the link can follow the score live.
-- **Players**: leaderboard for any stat (per game or totals) and for FG%, 3P% and FT%, player pages with game log, career highs, awards and injuries, and the injury report. Team members add players with **Add player** at the top.
+- **Live scoring**: one tap per stat for each player: +1 (inside the arc), +2 (behind it), FG miss, 3PT miss, REB, AST, STL, BLK and TO, with each count on its button; the team score adds itself up. Bench/On-court toggles track plus-minus (+/-), and with the game clock, minutes. Undo says what it will take back, and anyone with the link can follow the score live.
+- **Players**: leaderboard for any stat (per game or totals) and for FG% and 3P%, player pages with game log, career highs, awards and injuries, and the injury report. Team members add players with **Add player** at the top.
 - **Awards**: MVP and custom awards, voted on each game's page.
-- **Badges**: 12 badges in the style of NBA 2K (Bucket Getter, Sharpshooter, Dimer, Glass Cleaner and more), each in Bronze, Silver, Gold and Hall of Fame, earned from stats in finished games, so they move with the season. They show on player pages and the Awards tab, and **How to earn** lists what each tier takes. The cutoffs are in `src/badges.js`.
+- **Badges**: 11 badges in the style of NBA 2K (Bucket Getter, Sharpshooter, Dimer, Glass Cleaner and more), each in Bronze, Silver, Gold and Hall of Fame, earned from stats in finished games, so they move with the season. They show on player pages and the Awards tab, and **How to earn** lists what each tier takes. The cutoffs are in `src/badges.js`.
 - **Book**: over/under bets on player props with in-app coins (never real money). Everyone starts with 1,000. Lines come from each player's averages, and team members can move or pull them. Bets pay even money up to 250 a bet, close at tip-off, and settle from the final box score. The Book tab has your coins and bets and a leaderboard of bettors.
 - **Share recap**: makes a game graphic for the group chat or a story.
 
@@ -82,8 +82,8 @@ The UI is plain JavaScript rendered with [lit-html](https://lit.dev/docs/librari
 ## Notes
 
 - Ties can't be saved: one team has to win.
-- Scoring follows the league's 1s and 2s: 1 inside the arc, 2 behind it, 1 per free throw. If that ever changes, it's `SHOTS` in `src/stats.js`. 3PT and 3P% mean shots from behind the arc.
+- Scoring follows the league's 1s and 2s: 1 inside the arc, 2 behind it, and no free throws. If that ever changes, it's `SHOTS` in `src/stats.js`. 3PT and 3P% mean shots from behind the arc.
 - Shooting percentages are everything made over everything attempted, for the season or a game. FG counts every shot from the floor, threes included, the same as NBA box scores. They need misses tracked: in live scoring that's the Misses option (on by default).
 - Live minutes count game-clock time on the court, so stopping the clock stops everyone's minutes.
-- Plus-minus (+/-) is the score difference while a player is on the court: every basket, ours or theirs, counts for whoever is set to On court when it's tapped. It doesn't depend on the clock, so free throws with the clock stopped still count. In a box score entered by hand, type it in (the ± button flips the sign).
+- Plus-minus (+/-) is the score difference while a player is on the court: every basket, ours or theirs, counts for whoever is set to On court when it's tapped. It doesn't depend on the clock, so baskets with the clock stopped still count. In a box score entered by hand, type it in (the ± button flips the sign).
 - If nobody is ever put on the court during a live game, its minutes and +/- are saved as not tracked rather than all zeros.

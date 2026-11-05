@@ -127,8 +127,6 @@ function entry(player) {
     </label>
     <div class="statgrid">
       ${STAT_KEYS.map((k) => (k === 'plusMinus' ? plusMinusField(player, line) : numberField(k, STAT_LABELS[k], player, line)))}
-    </div>
-    <div class="statgrid shots">
       ${SHOT_INPUTS.map(([k, label]) => numberField(k, label, player, line))}
     </div>
     ${on && form.makes[player.id]
@@ -141,18 +139,21 @@ const numberField = (k, label, player, line) => html`<label>${label}
   <input name="${k}:${player.id}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" value=${val(line[k])} />
 </label>`;
 
-// Shooting, in stat-sheet order (made, then attempted).
-const SHOT_INPUTS = [['fgm', 'FGM'], ['fga', 'FGA'], ['fg3m', '3PM'], ['fg3a', '3PA'], ['ftm', 'FTM'], ['fta', 'FTA']];
+// Shooting, in stat-sheet order (made, then attempted). With the eight stats
+// that makes three rows of four.
+const SHOT_INPUTS = [['fgm', 'FGM'], ['fga', 'FGA'], ['fg3m', '3PM'], ['fg3a', '3PA']];
 
 // One player's typed-in line, shooting included (blank = not tracked).
 const readLine = (fd, pid) => Object.fromEntries([...STAT_KEYS, ...SHOOTING_FIELDS].map((k) => [k, parseStat(fd.get(`${k}:${pid}`), k)]));
 
-// Phone number pads have no minus key, so plus-minus gets a ± button.
+// Phone number pads have no minus key, so plus-minus gets a ± button inside
+// its box. (It isn't a <label>: a button in a label would take the label's taps.)
 const plusMinusField = (player, line) => html`<div class="pm-field">
-  <label>${STAT_LABELS.plusMinus}
-    <input name="plusMinus:${player.id}" inputmode="numeric" autocomplete="off" enterkeyhint="next" value=${val(line.plusMinus)} />
-  </label>
-  <button type="button" class="btn secondary sign-flip" aria-label="Flip the sign of ${player.name}'s plus-minus" @click=${flipSign}>±</button>
+  <span aria-hidden="true">${STAT_LABELS.plusMinus}</span>
+  <span class="pm-input">
+    <input name="plusMinus:${player.id}" aria-label="${player.name} plus-minus" inputmode="numeric" autocomplete="off" enterkeyhint="next" value=${val(line.plusMinus)} />
+    <button type="button" class="sign-flip" aria-label="Flip the sign of ${player.name}'s plus-minus" @click=${flipSign}>±</button>
+  </span>
 </div>`;
 
 function flipSign(e) {

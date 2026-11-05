@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SHOOTING,
+  SHOTS,
   byDateDesc,
   careerHighs,
   finalStats,
@@ -235,34 +237,38 @@ describe('pointsCheck', () => {
 });
 
 describe('shooting', () => {
-  it('records each tap with our league values: 1 inside, 2 behind the arc, 1 per free throw', () => {
+  it('records each tap with our league values: 1 inside the arc, 2 behind it', () => {
     expect(shotDeltas('inside', true)).toEqual({ points: 1, fgm: 1, fga: 1 });
     expect(shotDeltas('three', true)).toEqual({ points: 2, fgm: 1, fga: 1, fg3m: 1, fg3a: 1 });
-    expect(shotDeltas('ft', true)).toEqual({ points: 1, ftm: 1, fta: 1 });
+  });
+
+  it('has no free throws', () => {
+    expect(SHOOTING.map((s) => s.key)).toEqual(['fg', 'three']);
+    expect(Object.keys(SHOTS)).toEqual(['inside', 'three']);
   });
 
   it('counts a miss as an attempt only', () => {
     expect(shotDeltas('inside', false)).toEqual({ fga: 1 });
     expect(shotDeltas('three', false)).toEqual({ fga: 1, fg3a: 1 });
-    expect(shotDeltas('ft', false)).toEqual({ fta: 1 });
   });
 
   it('only scores points when misses are not being tracked', () => {
     expect(shotDeltas('three', true, { shooting: false })).toEqual({ points: 2 });
-    expect(shotDeltas('ft', false, { shooting: false })).toEqual({});
+    expect(shotDeltas('inside', false, { shooting: false })).toEqual({});
   });
 
   it('adds makes up to points', () => {
-    // 3 inside (1 each) + 2 threes (2 each) + 3 free throws = 10
-    expect(pointsFromMakes({ fgm: 5, fg3m: 2, ftm: 3 })).toBe(10);
-    expect(pointsFromMakes({ fgm: 5, fg3m: 2, ftm: null })).toBeNull();
+    // 3 inside (1 each) + 2 threes (2 each) = 7
+    expect(pointsFromMakes({ fgm: 5, fg3m: 2 })).toBe(7);
+    expect(pointsFromMakes({ fgm: 5, fg3m: 2, ftm: 3 })).toBe(7); // old free throws are ignored
+    expect(pointsFromMakes({ fgm: 5, fg3m: null })).toBeNull();
   });
 
   it('catches typed-in shooting that cannot be right', () => {
-    const ok = { fgm: 4, fga: 9, fg3m: 1, fg3a: 3, ftm: 2, fta: 2 };
+    const ok = { fgm: 4, fga: 9, fg3m: 1, fg3a: 3 };
     expect(shootingProblem(ok)).toBeNull();
     expect(shootingProblem({})).toBeNull(); // nothing tracked is fine
-    expect(shootingProblem({ ...ok, ftm: 3 })).toMatch(/FT made can't be more than attempted/);
+    expect(shootingProblem({ ...ok, fgm: 10 })).toMatch(/FG made can't be more than attempted/);
     expect(shootingProblem({ ...ok, fga: null })).toMatch(/both FG made and attempted/);
     expect(shootingProblem({ ...ok, fgm: null, fga: null })).toMatch(/fill in FG too/);
     expect(shootingProblem({ ...ok, fgm: 0, fga: 9 })).toMatch(/3PT can't be more than FG/);
@@ -270,18 +276,18 @@ describe('shooting', () => {
   });
 
   const stats = [
-    { gameId: 'g1', playerId: 'p1', fgm: 4, fga: 10, fg3m: 1, fg3a: 4, ftm: 2, fta: 2 },
-    { gameId: 'g2', playerId: 'p1', fgm: 6, fga: 10, fg3m: 2, fg3a: 4, ftm: 0, fta: 0 },
+    { gameId: 'g1', playerId: 'p1', fgm: 4, fga: 10, fg3m: 1, fg3a: 4, ftm: 2, fta: 2 }, // a line from when FT was kept
+    { gameId: 'g2', playerId: 'p1', fgm: 6, fga: 10, fg3m: 2, fg3a: 4 },
     { gameId: 'g3', playerId: 'p1', points: 5, fgm: null, fga: null }, // shooting not tracked
-    { gameId: 'g1', playerId: 'p2', fgm: 1, fga: 2, fg3m: 0, fg3a: 0, ftm: 0, fta: 0 },
-    { gameId: 'g1', playerId: 'p3', fgm: 5, fga: 10, fg3m: 0, fg3a: 1, ftm: 1, fta: 4 },
+    { gameId: 'g1', playerId: 'p2', fgm: 1, fga: 2, fg3m: 0, fg3a: 0 },
+    { gameId: 'g1', playerId: 'p3', fgm: 5, fga: 10, fg3m: 0, fg3a: 1 },
   ];
 
   it('works out season percentages from total makes and attempts', () => {
     const { shots } = playerLine('p1', stats);
     expect(shots.fg).toEqual({ made: 10, att: 20, games: 2, pct: 0.5 });
     expect(shots.three).toEqual({ made: 3, att: 8, games: 2, pct: 0.375 });
-    expect(shots.ft).toEqual({ made: 2, att: 2, games: 2, pct: 1 });
+    expect(Object.keys(shots)).toEqual(['fg', 'three']);
     expect(playerLine('p2', stats).shots.three.pct).toBeNull(); // no attempts
   });
 

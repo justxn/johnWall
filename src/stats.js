@@ -4,7 +4,7 @@ import { normName } from './util.js';
 
 export const STAT_KEYS = ['points', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'minutes', 'plusMinus'];
 export const STAT_LABELS = {
-  points: 'PTS', rebounds: 'REB', assists: 'AST', steals: 'STL', blocks: 'BLK', turnovers: 'TOV', minutes: 'MIN', plusMinus: '+/-',
+  points: 'PTS', rebounds: 'REB', assists: 'AST', steals: 'STL', blocks: 'BLK', turnovers: 'TO', minutes: 'MIN', plusMinus: '+/-',
 };
 export const AVG_LABELS = {
   points: 'PPG', rebounds: 'RPG', assists: 'APG', steals: 'SPG', blocks: 'BPG', turnovers: 'TOPG', minutes: 'MPG', plusMinus: '+/-',
@@ -19,22 +19,19 @@ export const COURT_STATS = ['minutes', 'plusMinus'];
 
 // Shooting is kept as makes and attempts on each stat line, blank when not
 // tracked. FG is every shot from the floor (threes included), 3PT only shots
-// from behind the arc, FT free throws.
+// from behind the arc. The league has no free throws, so there's no FT.
 export const SHOOTING = [
   { key: 'fg', made: 'fgm', att: 'fga', label: 'FG', pct: 'FG%', name: 'Field goals' },
   { key: 'three', made: 'fg3m', att: 'fg3a', label: '3PT', pct: '3P%', name: 'Threes' },
-  { key: 'ft', made: 'ftm', att: 'fta', label: 'FT', pct: 'FT%', name: 'Free throws' },
 ];
 export const SHOOTING_FIELDS = SHOOTING.flatMap((s) => [s.made, s.att]);
 export const shootingOf = (key) => SHOOTING.find((s) => s.key === key) || null;
 
-// How baskets count in our league (1s and 2s with free throws, like FIBA
-// 3x3): 1 inside the arc, 2 behind it, 1 per free throw. Each shot also
-// lists the shooting stats it counts toward.
+// How baskets count in our league (1s and 2s): 1 inside the arc, 2 behind
+// it. Each shot also lists the shooting stats it counts toward.
 export const SHOTS = {
   inside: { points: 1, made: ['fgm'], att: ['fga'] },
   three: { points: 2, made: ['fgm', 'fg3m'], att: ['fga', 'fg3a'] },
-  ft: { points: 1, made: ['ftm'], att: ['fta'] },
 };
 
 // The stat changes for one shot: its points if it went in, plus the makes and
@@ -52,7 +49,7 @@ export function shotDeltas(shot, made, { shooting = true } = {}) {
 // Points the makes add up to, or null unless every kind of shot was tracked.
 export function pointsFromMakes(line) {
   if (SHOOTING.some((s) => line[s.made] == null)) return null;
-  return (line.fgm - line.fg3m) * SHOTS.inside.points + line.fg3m * SHOTS.three.points + line.ftm * SHOTS.ft.points;
+  return (line.fgm - line.fg3m) * SHOTS.inside.points + line.fg3m * SHOTS.three.points;
 }
 
 // What's wrong with typed-in shooting numbers, or null when they make sense.
@@ -160,7 +157,7 @@ export function leaders(players, stats, key, { totals = false } = {}) {
     .sort((a, b) => b.value - a.value || a.player.name.localeCompare(b.player.name));
 }
 
-// Shooting percentage ranking ('fg', 'three' or 'ft'). Players need at least
+// Shooting percentage ranking ('fg' or 'three'). Players need at least
 // one attempt; at the same percentage, more attempts ranks higher.
 export function shootingLeaders(players, stats, key) {
   return players

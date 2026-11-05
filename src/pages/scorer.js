@@ -12,9 +12,9 @@ import {
   toggleClock,
   toggleCourt,
 } from '../actions.js';
-import { COURT_STATS, SHOOTING, STAT_KEYS, STAT_LABELS, fmtShots, fmtStat, shotDeltas, statusOf } from '../stats.js';
+import { COURT_STATS, SHOOTING, STAT_KEYS, STAT_LABELS, STAT_NAMES, fmtShots, fmtStat, shotDeltas, statusOf } from '../stats.js';
 import { clockMs, clockRunning, isOnCourt, playedMs, plusMinusCourt } from '../live.js';
-import { backLink, icon, injuryPill, livePill, rerender, toast } from '../ui.js';
+import { backLink, icon, injuryPill, rerender, toast } from '../ui.js';
 import { fmtClock, todayISO } from '../util.js';
 
 export const meta = { tab: 'games', teamOnly: true, bare: true };
@@ -73,8 +73,8 @@ export function view([id]) {
 
 const nowHHMM = () => new Date().toTimeString().slice(0, 5);
 
-// What can be switched on or off for a live game. 'shooting' is the Miss
-// buttons (makes are always tapped), which give FG%, 3P% and FT%.
+// What can be switched on or off for a live game. 'shooting' is the FG miss
+// and 3PT miss buttons (makes are always tapped), which give FG% and 3P%.
 const TRACK_OPTIONS = ['shooting', ...STAT_KEYS.filter((k) => k !== 'points')];
 const trackLabel = (k) => (k === 'shooting' ? 'Misses' : STAT_LABELS[k]);
 
@@ -122,7 +122,10 @@ function setupView(game) {
         </label>`)}
       </section>
       <section class="card stack">
-        <div><h2>What are you tracking?</h2><p class="hint">Points are always on. Misses puts a Miss button under each shot, for FG%, 3P% and FT%. Minutes and +/- count while a player is set to On court (minutes only while the clock runs).</p></div>
+        <div>
+          <h2>What are you tracking?</h2>
+          <p class="hint">Points always count. Misses adds FG miss and 3PT miss buttons, for FG% and 3P%. MIN and +/- count while a player is set to On court (MIN only while the clock runs).</p>
+        </div>
         <div class="chips wrap">
           ${TRACK_OPTIONS.map((k) => {
             const on = setup.tracked.has(k);
@@ -168,7 +171,7 @@ const buzz = () => navigator.vibrate?.(12);
 const court = (game) => plusMinusCourt(game.live, gameStats(game.id).map((s) => s.playerId));
 
 // Applies one tap's stat changes and remembers them for undo. `what` names the
-// tap in the undo message.
+// tap ("+2", "REB") on the Undo button.
 function record(game, playerId, deltas, what) {
   const onFloor = deltas.points ? court(game) : [];
   scorePlayer(game.id, playerId, deltas, onFloor);
@@ -176,38 +179,37 @@ function record(game, playerId, deltas, what) {
   buzz();
 }
 
-// Shot buttons in our league's values (see SHOTS in stats.js): the make on
-// top and, when misses are tracked, its miss underneath.
+// Shot buttons in our league's values (see SHOTS in stats.js). The makes are
+// always there; the misses only when misses are being tracked.
 const SHOT_BUTTONS = [
-  { shot: 'inside', make: '+1', miss: 'Miss 1', made: 'scored 1 inside the arc', missed: 'missed inside the arc' },
-  { shot: 'three', make: '+2', miss: 'Miss 2', made: 'scored 2 from behind the arc', missed: 'missed from behind the arc' },
-  { shot: 'ft', make: 'FT', miss: 'Miss FT', made: 'made a free throw', missed: 'missed a free throw' },
+  { shot: 'inside', made: true, label: '+1', aria: 'scored 1 inside the arc' },
+  { shot: 'three', made: true, label: '+2', aria: 'scored 2 from behind the arc' },
+  { shot: 'inside', made: false, label: 'FG miss', aria: 'missed inside the arc' },
+  { shot: 'three', made: false, label: '3PT miss', aria: 'missed from behind the arc' },
 ];
 
-function shoot(game, playerId, button, made) {
+function shoot(game, playerId, button) {
   const shooting = Boolean(game.live?.tracked?.includes('shooting'));
-  record(game, playerId, shotDeltas(button.shot, made, { shooting }), made ? button.make : button.miss);
+  record(game, playerId, shotDeltas(button.shot, button.made, { shooting }), button.label);
 }
 
 function opp(game, n) {
   if (n < 0 && !(game.opponentScore > 0)) return;
   const onFloor = court(game);
   scoreOpponent(game.id, n, onFloor);
-  undo.push({ opp: true, n, court: onFloor });
+  undo.push({ opp: true, n, court: onFloor, what: n > 0 ? `+${n}` : `−${-n}` });
   buzz();
 }
+
+// What Undo takes back: "Aarav +2", "them +1".
+const undoText = (last) => `${last.opp ? 'them' : findPlayer(last.playerId)?.name ?? 'player'} ${last.what}`;
 
 function undoLast(game) {
   const last = undo.pop();
   if (!last) return;
-  if (last.opp) {
-    scoreOpponent(game.id, -last.n, last.court);
-    toast(`Undid ${last.n > 0 ? '+' : ''}${last.n} for them`);
-  } else {
-    const back = Object.fromEntries(Object.entries(last.deltas).map(([k, n]) => [k, -n]));
-    scorePlayer(game.id, last.playerId, back, last.court);
-    toast(`Undid ${last.what} for ${findPlayer(last.playerId)?.name ?? 'player'}`);
-  }
+  if (last.opp) scoreOpponent(game.id, -last.n, last.court);
+  else scorePlayer(game.id, last.playerId, Object.fromEntries(Object.entries(last.deltas).map(([k, n]) => [k, -n])), last.court);
+  toast(`Undid ${undoText(last)}`);
   rerender();
 }
 
@@ -226,45 +228,69 @@ function cancel(game) {
   location.hash = `#/games/${game.id}`;
 }
 
+// The score, the clock, Undo (which says what it would take back) and the
+// opponent's buttons, which sit under their score. Kept at the top while
+// scrolling.
+function scoreboard(game, live) {
+  const running = clockRunning(live);
+  const last = undo.at(-1);
+  return html`<section class="scoreboard" aria-label="Scoreboard">
+    <div class="sb-scores">
+      <div class="sb-team"><span>${teamName()}</span><strong>${game.teamScore ?? 0}</strong></div>
+      <div class="sb-clock">
+        <span class="time">${fmtClock(clockMs(live))}</span>
+        <button class=${running ? 'running' : ''} aria-label=${running ? 'Stop the clock' : 'Start the clock'} @click=${() => toggleClock(game)}>
+          ${icon(running ? 'pause' : 'play')}
+        </button>
+      </div>
+      <div class="sb-team"><span>${game.opponent}</span><strong>${game.opponentScore ?? 0}</strong></div>
+    </div>
+    <div class="sb-actions">
+      <button class="sb-undo" ?disabled=${!last} aria-label=${last ? `Undo ${undoText(last)}` : 'Undo'} @click=${() => undoLast(game)}>
+        ${icon('undo')}<span class="ellipsis">${last ? undoText(last) : 'Undo'}</span>
+      </button>
+      <div class="opp-buttons" role="group" aria-label="Their score">
+        ${[1, 2].map((n) => html`<button aria-label="They scored ${n}" @click=${() => opp(game, n)}>+${n}</button>`)}
+        <button aria-label="Take a point off their score" ?disabled=${!(game.opponentScore > 0)} @click=${() => opp(game, -1)}>−1</button>
+      </div>
+    </div>
+  </section>`;
+}
+
+// One player: their line so far, the On court switch (when minutes or +/- are
+// tracked), a row of shot buttons, then one button per stat with its count.
 function tapCard(game, line, tracked) {
   const pid = line.playerId;
   const name = findPlayer(pid)?.name ?? 'Unknown';
   const on = isOnCourt(game.live, pid);
-  const withMinutes = tracked.includes('minutes');
-  const withPlusMinus = tracked.includes('plusMinus');
   const shooting = tracked.includes('shooting');
-  const statButtons = tracked.filter((k) => STAT_KEYS.includes(k) && k !== 'points' && !COURT_STATS.includes(k));
-  const part = (value, label) => html`<b>${value}</b> ${label}`;
-  const parts = [
-    part(line.points ?? 0, 'PTS'),
-    ...(shooting ? SHOOTING.map((s) => part(fmtShots(line[s.made] ?? 0, line[s.att] ?? 0), s.label)) : []),
-    ...statButtons.map((k) => part(line[k] ?? 0, STAT_LABELS[k])),
-    ...(withMinutes ? [part(fmtClock(playedMs(game.live, pid)), 'MIN')] : []),
-    ...(withPlusMinus ? [part(fmtStat(line.plusMinus ?? 0, 'plusMinus'), '+/-')] : []),
+  const shots = SHOT_BUTTONS.filter((b) => b.made || shooting);
+  const counted = tracked.filter((k) => STAT_KEYS.includes(k) && k !== 'points' && !COURT_STATS.includes(k));
+  const summary = [
+    [line.points ?? 0, 'PTS'],
+    ...(shooting ? SHOOTING.map((s) => [fmtShots(line[s.made] ?? 0, line[s.att] ?? 0), s.label]) : []),
+    ...(tracked.includes('minutes') ? [[fmtClock(playedMs(game.live, pid)), 'MIN']] : []),
+    ...(tracked.includes('plusMinus') ? [[fmtStat(line.plusMinus ?? 0, 'plusMinus'), '+/-']] : []),
   ];
-  return html`<section class="tap-card ${on ? 'on-court' : ''}">
-    <div class="tap-head">
-      <div class="grow">
+  return html`<section class="tap-card ${on ? 'on-court' : ''}" aria-label=${name}>
+    <div class="tap-top">
+      <div class="tap-head">
         <strong class="ellipsis">${name}</strong>
-        <span class="tap-line">${parts.map((p, i) => html`${i ? ' · ' : ''}${p}`)}</span>
+        ${tracked.some((k) => COURT_STATS.includes(k))
+          ? html`<button class="court-toggle ${on ? 'on' : ''}" aria-pressed=${on ? 'true' : 'false'} @click=${() => toggleCourt(game, pid)}>
+              ${on ? 'On court' : 'Bench'}
+            </button>`
+          : nothing}
       </div>
-      ${withMinutes || withPlusMinus
-        ? html`<button class="court-toggle ${on ? 'on' : ''}" aria-pressed=${on ? 'true' : 'false'} @click=${() => toggleCourt(game, pid)}>
-            ${on ? 'On court' : 'Bench'}
-          </button>`
-        : nothing}
+      <div class="tap-line">${summary.map(([value, label], i) => html`${i ? ' · ' : ''}<b>${value}</b> ${label}`)}</div>
     </div>
-    <div class="tap-row points">
-      ${SHOT_BUTTONS.map((b) => html`<button aria-label="${name} ${b.made}" @click=${() => shoot(game, pid, b, true)}>${b.make}</button>`)}
+    <div class="tap-pad" style="--cols: ${shots.length}">
+      ${shots.map((b) => html`<button class=${b.made ? 'make' : 'miss'} aria-label="${name} ${b.aria}" @click=${() => shoot(game, pid, b)}>${b.label}</button>`)}
     </div>
-    ${shooting
-      ? html`<div class="tap-row misses">
-          ${SHOT_BUTTONS.map((b) => html`<button aria-label="${name} ${b.missed}" @click=${() => shoot(game, pid, b, false)}>${b.miss}</button>`)}
-        </div>`
-      : nothing}
-    ${statButtons.length
-      ? html`<div class="tap-row stats" style="grid-template-columns: repeat(${statButtons.length}, 1fr)">
-          ${statButtons.map((k) => html`<button class=${k === 'turnovers' ? 'bad' : ''} aria-label="${name} ${STAT_LABELS[k]}" @click=${() => record(game, pid, { [k]: 1 }, STAT_LABELS[k])}>${STAT_LABELS[k]}</button>`)}
+    ${counted.length
+      ? html`<div class="tap-pad" style="--cols: ${counted.length}">
+          ${counted.map((k) => html`<button class=${k === 'turnovers' ? 'bad' : ''} aria-label="${name} ${STAT_NAMES[k].toLowerCase()}, ${line[k] ?? 0} so far"
+            @click=${() => record(game, pid, { [k]: 1 }, STAT_LABELS[k])}>${STAT_LABELS[k]}<span class="n">${line[k] ?? 0}</span></button>`)}
         </div>`
       : nothing}
   </section>`;
@@ -274,35 +300,14 @@ function scorerView(game) {
   const live = game.live || {};
   const tracked = live.tracked || STAT_KEYS;
   const lines = gameStats(game.id).sort((a, b) => (findPlayer(a.playerId)?.name ?? '').localeCompare(findPlayer(b.playerId)?.name ?? ''));
-  const running = clockRunning(live);
   const bench = activePlayers().filter((p) => !lines.some((l) => l.playerId === p.id));
   return html`
-    <section class="scoreboard" aria-label="Scoreboard">
-      <div class="sb-top">
-        <a class="icon-btn" href="#/games/${game.id}" aria-label="Back to the game page">${icon('back')}</a>
-        ${livePill()}
-        <button class="icon-btn" aria-label="Undo the last tap" ?disabled=${!undo.length} @click=${() => undoLast(game)}>${icon('undo')}</button>
-      </div>
-      <div class="sb-scores">
-        <div><span>${teamName()}</span><strong>${game.teamScore ?? 0}</strong></div>
-        <div class="sb-clock">
-          <span class="time">${fmtClock(clockMs(live))}</span>
-          <button class=${running ? 'running' : ''} aria-label=${running ? 'Stop the clock' : 'Start the clock'} @click=${() => toggleClock(game)}>
-            ${icon(running ? 'pause' : 'play')}
-          </button>
-        </div>
-        <div><span>${game.opponent}</span><strong>${game.opponentScore ?? 0}</strong></div>
-      </div>
-      <div class="opp-buttons">
-        <span class="label">THEY SCORED</span>
-        ${[1, 2].map((n) => html`<button aria-label="They scored ${n}" @click=${() => opp(game, n)}>+${n}</button>`)}
-        <button aria-label="Take a point off their score" @click=${() => opp(game, -1)}>−1</button>
-      </div>
-    </section>
+    ${backLink(`#/games/${game.id}`, 'Game')}
+    ${scoreboard(game, live)}
     ${repeat(lines, (l) => l.playerId, (l) => tapCard(game, l, tracked))}
-    ${bench.length
-      ? html`<section class="card">
-          <label>Add a player
+    <section class="card stack">
+      ${bench.length
+        ? html`<label>Add a player
             <select @change=${(e) => {
               if (e.target.value) addLivePlayer(game, e.target.value);
               e.target.value = '';
@@ -310,10 +315,8 @@ function scorerView(game) {
               <option value="">Choose…</option>
               ${bench.map((p) => html`<option value=${p.id}>${p.name}</option>`)}
             </select>
-          </label>
-        </section>`
-      : nothing}
-    <section class="card stack">
+          </label>`
+        : nothing}
       <button class="btn block" @click=${() => finish(game)}>${icon('check')}Finish game</button>
       <button class="btn danger-ghost" @click=${() => cancel(game)}>Cancel live scoring</button>
     </section>`;

@@ -91,24 +91,26 @@ function archetype(player) {
   </div>`;
 }
 
-const tiles = (line) => html`<div class="tiles">
-  ${STAT_KEYS.map((k) => html`<div class="tile">
-    <small class="muted">${AVG_LABELS[k]}</small>
-    <strong>${fmtAvg(line.avg[k], k)}</strong>
-    <span class="hint">${line.tracked[k] === 0 ? 'not tracked' : line.tracked[k] < line.gp ? `${line.tracked[k]} of ${line.gp} games` : `${fmtStat(line.total[k], k)} total`}</span>
-  </div>`)}
-</div>
-<h3>Shooting</h3>
-<div class="tiles">
-  ${SHOOTING.map((s) => {
-    const shots = line.shots[s.key];
-    return html`<div class="tile">
-      <small class="muted">${s.pct}</small>
-      <strong>${fmtPct(shots.pct)}</strong>
-      <span class="hint">${shots.games ? `${shots.made}/${shots.att}` : 'not tracked'}</span>
-    </div>`;
-  })}
-</div>`;
+const tile = (label, value, hint) => html`<div class="tile"><small class="muted">${label}</small><strong>${value}</strong><span class="hint">${hint}</span></div>`;
+
+// Season averages with shooting right after points, and minutes (tracked the
+// least) last. Stats nobody has tracked for this player are left out instead
+// of showing a row of dashes.
+const TILE_ORDER = ['points', ...SHOOTING.map((s) => s.key), ...STAT_KEYS.filter((k) => k !== 'points' && k !== 'minutes'), 'minutes'];
+
+function tiles(line) {
+  const shown = TILE_ORDER.flatMap((k) => {
+    const shot = SHOOTING.find((s) => s.key === k);
+    if (shot) {
+      const s = line.shots[k];
+      return s.games ? [tile(shot.pct, fmtPct(s.pct), `${s.made}/${s.att}`)] : [];
+    }
+    if (k !== 'points' && line.tracked[k] === 0) return [];
+    const hint = line.tracked[k] < line.gp ? `${line.tracked[k]} of ${line.gp} games` : `${fmtStat(line.total[k], k)} total`;
+    return [tile(AVG_LABELS[k], fmtAvg(line.avg[k], k), hint)];
+  });
+  return html`<div class="tiles">${shown}</div>`;
+}
 
 // "8 PTS · 3-5 FG · 1-2 3PT · 2 REB · …", with shooting right after points.
 function logLine(line) {

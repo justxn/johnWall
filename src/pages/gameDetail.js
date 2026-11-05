@@ -58,9 +58,9 @@ function scheduled(game) {
         ? html`<div class="stack">
             <a class="btn block" href="#/games/${game.id}/live">${icon('live')}Start live scoring</a>
             <a class="btn secondary block" href="#/games/${game.id}/result">Enter the final score</a>
-            <div class="row">
-              <a class="btn ghost" href="#/games/${game.id}/edit">${icon('edit')}Edit details</a>
-              <button class="btn danger-ghost" @click=${() => remove(game)}>Delete</button>
+            <div class="actions">
+              <a class="btn sm ghost" href="#/games/${game.id}/edit">${icon('edit')}Edit details</a>
+              <button class="btn sm danger-ghost" @click=${() => remove(game)}>Delete</button>
             </div>
           </div>`
         : nothing}
@@ -95,11 +95,11 @@ function final(game) {
       ${metaLine(game)}
       ${game.notes ? html`<p class="notes">${game.notes}</p>` : nothing}
       ${series ? html`<p class="muted">${series}</p>` : nothing}
-      <div class="row">
-        <button class="btn secondary" @click=${() => openRecap(game)}>${icon('share')}Share recap</button>
+      <div class="actions">
+        <button class="btn sm secondary" @click=${() => openRecap(game)}>${icon('share')}Share recap</button>
         ${isTeam()
-          ? html`<a class="btn ghost" href="#/games/${game.id}/edit">${icon('edit')}Edit</a>
-              <button class="btn danger-ghost" @click=${() => remove(game)}>Delete</button>`
+          ? html`<a class="btn sm secondary" href="#/games/${game.id}/edit">Edit</a>
+              <button class="btn sm danger-ghost" @click=${() => remove(game)}>Delete</button>`
           : nothing}
       </div>
     </section>

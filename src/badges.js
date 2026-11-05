@@ -45,7 +45,6 @@ export const BADGES = [
     show: (v) => plural(v, 'three'),
     cutoff: String,
   },
-  { id: 'charity-stripe', name: 'Charity Stripe', icon: '🆓', about: 'FT%, from 5 free throws', tiers: [60, 70, 80, 90], ...percent('ft', 5, 'free throws tried') },
   { id: 'dimer', name: 'Dimer', icon: '🪙', about: 'Assists per game', tiers: [1.5, 2.5, 3.5, 5], ...perGame('assists', 'APG') },
   {
     id: 'floor-general',
@@ -62,7 +61,7 @@ export const BADGES = [
       if (ast < 5) return { value: null, need: `Needs 5 assists (${ast} so far)` };
       return { value: tov ? ast / tov : Infinity };
     },
-    show: (v) => (v === Infinity ? 'No turnovers' : `${v.toFixed(1)} AST per TOV`),
+    show: (v) => (v === Infinity ? 'No turnovers' : `${v.toFixed(1)} AST per TO`),
     cutoff: String,
   },
   { id: 'glass-cleaner', name: 'Glass Cleaner', icon: '🧽', about: 'Rebounds per game', tiers: [3, 4.5, 6, 8], ...perGame('rebounds', 'RPG') },
