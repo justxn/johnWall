@@ -17,6 +17,15 @@ service cloud.firestore {
     // Only team members act as a player (votes, no voting for yourself).
     function myPlayerId() { return me().role == 'team' ? me().get('playerId', null) : null; }
 
+    function scheduled(gameId) {
+      return get(/databases/$(database)/documents/games/$(gameId)).data.get('status', 'final') == 'scheduled';
+    }
+    // A bet has to use the line as posted, on a prop that hasn't been pulled.
+    function atPostedLine(gameId, bet) {
+      let posted = get(/databases/$(database)/documents/games/$(gameId)/lines/$(bet.playerId + '_' + bet.stat)).data;
+      return bet.line == posted.line && !posted.get('pulled', false);
+    }
+
     function validJoin(uid, role) {
       let code = getAfter(/databases/$(database)/documents/joins/$(uid)).data.code;
       let group = getAfter(/databases/$(database)/documents/config/group).data;
@@ -101,10 +110,42 @@ service cloud.firestore {
           && (resource == null || resource.data.voterId == request.resource.data.voterId);
         allow delete: if isTeam() || (isMember() && resource.data.voterId in [request.auth.uid, myPlayerId()]);
       }
+
+      // Sportsbook prop lines, id {playerId}_{stat}. Team members post and move
+      // them before tip-off, and can always remove them (deleting a game).
+      match /lines/{lineId} {
+        allow read: if true;
+        allow create, update: if isTeam() && scheduled(gameId)
+          && request.resource.data.keys().hasOnly(['gameId', 'playerId', 'stat', 'line', 'auto', 'pulled', 'updatedAt'])
+          && request.resource.data.gameId == gameId
+          && lineId == request.resource.data.playerId + '_' + request.resource.data.stat
+          && request.resource.data.line is number;
+        allow delete: if isTeam();
+      }
+
+      // Bets in in-app coins. Members bet as themselves (like votes), before
+      // tip-off, at the posted line, up to 250 coins, never the under on their
+      // own props. Bets can't be edited, only cancelled before tip-off.
+      match /bets/{betId} {
+        allow read: if true;
+        allow create: if isMember() && scheduled(gameId)
+          && request.resource.data.keys().hasOnly(['gameId', 'bettorId', 'bettorName', 'playerId', 'stat', 'side', 'line', 'stake', 'placedAt'])
+          && request.resource.data.gameId == gameId
+          && request.resource.data.bettorId in [request.auth.uid, myPlayerId()]
+          && request.resource.data.bettorName is string && request.resource.data.bettorName.size() <= 60
+          && request.resource.data.side in ['over', 'under']
+          && request.resource.data.stake is int && request.resource.data.stake >= 1 && request.resource.data.stake <= 250
+          && request.resource.data.placedAt == request.time
+          && atPostedLine(gameId, request.resource.data)
+          && !(request.resource.data.side == 'under' && request.resource.data.playerId == myPlayerId());
+        allow delete: if isTeam() || (isMember() && resource.data.bettorId in [request.auth.uid, myPlayerId()] && scheduled(gameId));
+      }
     }
 
-    // Collection-group queries (all stats/votes at once) need their own read rules.
+    // Collection-group queries (all stats/votes/bets/lines at once) need their own read rules.
     match /{path=**}/stats/{playerId} { allow read: if true; }
     match /{path=**}/votes/{voteId} { allow read: if true; }
+    match /{path=**}/bets/{betId} { allow read: if true; }
+    match /{path=**}/lines/{lineId} { allow read: if true; }
   }
 }

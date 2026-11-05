@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 
 const TEAM_CODE = 'swish-2026';
 const FAN_CODE = 'watch-party';
@@ -202,5 +202,70 @@ describe('votes', () => {
     await assertFails(deleteDoc(doc(db('fan'), 'games/g1/votes/other_mvp')));
     await assertSucceeds(deleteDoc(doc(db('fan'), 'games/g1/votes/fan_mvp')));
     await assertSucceeds(deleteDoc(doc(db('captain'), 'games/g1/votes/other_mvp')));
+  });
+});
+
+describe('sportsbook', () => {
+  beforeEach(() => seed(async (fs) => {
+    await setDoc(doc(fs, 'games/g2'), { status: 'scheduled', date: '2026-11-11', opponent: 'Brick Squad' });
+    await setDoc(doc(fs, 'games/g2/lines/p1_points'), { gameId: 'g2', playerId: 'p1', stat: 'points', line: 7.5, auto: true, pulled: false });
+    await setDoc(doc(fs, 'games/g2/lines/p2_points'), { gameId: 'g2', playerId: 'p2', stat: 'points', line: 3.5, auto: false, pulled: true });
+  }));
+
+  const bet = (uid, extra = {}) => setDoc(doc(collection(db(uid), 'games/g2/bets')), {
+    gameId: 'g2', bettorId: uid, bettorName: 'Sam', playerId: 'p1', stat: 'points', side: 'over', line: 7.5, stake: 100, placedAt: serverTimestamp(), ...extra,
+  });
+  const seedBet = (id, bettorId) => seed((fs) => setDoc(doc(fs, `games/g2/bets/${id}`), {
+    gameId: 'g2', bettorId, bettorName: 'Sam', playerId: 'p1', stat: 'points', side: 'over', line: 7.5, stake: 100,
+  }));
+
+  it('lets anyone read lines and bets', async () => {
+    await assertSucceeds(getDocs(collectionGroup(db(), 'lines')));
+    await assertSucceeds(getDocs(collectionGroup(db(), 'bets')));
+  });
+
+  it('lets only the team post lines, and only before tip-off', async () => {
+    const line = { gameId: 'g2', playerId: 'p2', stat: 'rebounds', line: 2.5, auto: false, pulled: false };
+    await assertFails(setDoc(doc(db('fan'), 'games/g2/lines/p2_rebounds'), line));
+    await assertSucceeds(setDoc(doc(db('captain'), 'games/g2/lines/p2_rebounds'), line));
+    await assertFails(setDoc(doc(db('captain'), 'games/g2/lines/p2_assists'), line)); // id doesn't match the prop
+    await assertFails(setDoc(doc(db('captain'), 'games/g1/lines/p2_rebounds'), { ...line, gameId: 'g1' })); // g1 is over
+    await assertFails(deleteDoc(doc(db('fan'), 'games/g2/lines/p1_points')));
+    await assertSucceeds(deleteDoc(doc(db('captain'), 'games/g2/lines/p1_points')));
+  });
+
+  it('takes bets from members at the posted line', async () => {
+    await assertSucceeds(bet('fan'));
+    await assertSucceeds(bet('captain', { bettorId: 'p1' })); // the over on yourself is fine
+    await assertFails(bet('stranger'));
+    await assertFails(bet('fan', { line: 0.5 }));
+    await assertFails(bet('fan', { playerId: 'p2' })); // pulled prop
+    await assertFails(bet('fan', { stat: 'rebounds' })); // no line posted
+  });
+
+  it('caps stakes and keeps players off their own under', async () => {
+    await assertFails(bet('fan', { stake: 251 }));
+    await assertFails(bet('fan', { stake: 0 }));
+    await assertFails(bet('fan', { stake: 10.5 }));
+    await assertFails(bet('captain', { bettorId: 'p1', side: 'under' }));
+    await assertSucceeds(bet('fan', { side: 'under' }));
+  });
+
+  it('only takes bets as yourself, before tip-off', async () => {
+    await assertFails(bet('fan', { bettorId: 'p1' }));
+    await seed((fs) => updateDoc(doc(fs, 'games/g2'), { status: 'live' }));
+    await assertFails(bet('fan'));
+  });
+
+  it('lets bettors cancel their own bets before tip-off, but not edit them', async () => {
+    await seedBet('b1', 'fan');
+    await seedBet('b2', 'p1');
+    await assertFails(updateDoc(doc(db('fan'), 'games/g2/bets/b1'), { stake: 250 }));
+    await assertFails(deleteDoc(doc(db('fan'), 'games/g2/bets/b2')));
+    await assertSucceeds(deleteDoc(doc(db('fan'), 'games/g2/bets/b1')));
+    await seed((fs) => updateDoc(doc(fs, 'games/g2'), { status: 'live' }));
+    await seedBet('b3', 'fan');
+    await assertFails(deleteDoc(doc(db('fan'), 'games/g2/bets/b3')));
+    await assertSucceeds(deleteDoc(doc(db('captain'), 'games/g2/bets/b3'))); // the team can clean up any time
   });
 });

@@ -10,10 +10,11 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase.js';
-import { gameStats, state } from './store.js';
+import { activeInjuries, gameBets, gameLines, gameStats, state } from './store.js';
 import { voteId } from './awards.js';
 import { voterKey } from './auth.js';
-import { SHOOTING_FIELDS, STAT_KEYS } from './stats.js';
+import { SHOOTING_FIELDS, STAT_KEYS, finalStats } from './stats.js';
+import { autoLines, bettingOpen, lineId, syncLines } from './book.js';
 import { clockToggle, courtToggle, courtUsed, finalMinutes } from './live.js';
 import { toast } from './ui.js';
 
@@ -66,6 +67,8 @@ export function deleteGame(game) {
   const batch = writeBatch(db);
   gameStats(game.id).forEach((s) => batch.delete(statRef(game.id, s.id)));
   state.votes.filter((v) => v.gameId === game.id).forEach((v) => batch.delete(doc(db, 'games', game.id, 'votes', v.id)));
+  gameBets(game.id).forEach((b) => batch.delete(doc(db, 'games', game.id, 'bets', b.id)));
+  gameLines(game.id).forEach((l) => batch.delete(lineRef(game.id, l.id)));
   batch.delete(gameRef(game.id));
   return send(batch.commit(), 'Delete');
 }
@@ -168,6 +171,51 @@ export function cancelLive(game) {
   batch.update(gameRef(game.id), { status: 'scheduled', teamScore: null, opponentScore: null, live: deleteField() });
   return send(batch.commit(), 'Cancel');
 }
+
+// --- Sportsbook ---------------------------------------------------------------
+
+const lineRef = (gameId, id) => doc(db, 'games', gameId, 'lines', id);
+const sentLines = new Map(); // gameId -> the last update sent, so it isn't sent again while it lands
+
+// Keeps the automatic prop lines of every game still open for betting in step
+// with the stats (see syncLines in book.js). Runs on team members' phones
+// whenever data changes, and writes nothing when the lines are already right.
+export function syncAllLines() {
+  const done = finalStats(state.games, state.stats);
+  const out = new Set(activeInjuries().filter((i) => i.status === 'out').map((i) => i.playerId));
+  const wanted = autoLines(state.players, done, out);
+  for (const game of state.games.filter((g) => bettingOpen(g))) {
+    const { set, remove } = syncLines(gameLines(game.id), wanted);
+    if (!set.length && !remove.length) {
+      sentLines.delete(game.id);
+      continue;
+    }
+    const key = JSON.stringify([set, remove]);
+    if (sentLines.get(game.id) === key) continue;
+    sentLines.set(game.id, key);
+    const batch = writeBatch(db);
+    for (const l of set) {
+      batch.set(lineRef(game.id, l.id), { gameId: game.id, playerId: l.playerId, stat: l.stat, line: l.line, auto: true, pulled: false, updatedAt: serverTimestamp() });
+    }
+    for (const id of remove) batch.delete(lineRef(game.id, id));
+    send(batch.commit(), 'Prop lines');
+  }
+}
+
+// A team member setting a line by hand, or pulling a prop ({ pulled: true }).
+// Hand-set lines stop following the averages; { auto: true } hands one back.
+export const setLine = (gameId, { playerId, stat }, fields) =>
+  send(
+    setDoc(lineRef(gameId, lineId(playerId, stat)), { gameId, playerId, stat, auto: false, pulled: false, ...fields, updatedAt: serverTimestamp() }, { merge: true }),
+    'Line',
+  );
+
+// Bets can't be changed once placed, only cancelled before tip-off.
+export function placeBet(gameId, bet) {
+  const ref = doc(collection(db, 'games', gameId, 'bets'));
+  return send(setDoc(ref, { gameId, ...bet, placedAt: serverTimestamp() }), 'Bet');
+}
+export const cancelBet = (bet) => send(deleteDoc(doc(db, 'games', bet.gameId, 'bets', bet.id)), 'Cancel');
 
 // --- Injuries ---------------------------------------------------------------
 export function saveInjury(id, fields) {

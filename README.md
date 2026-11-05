@@ -10,17 +10,20 @@ App for our intramural 3v3 basketball team: the schedule, live scorekeeping, box
 - **Players**: leaderboard for any stat (per game or totals) and for FG%, 3P% and FT%, player pages with game log, career highs, awards and injuries, and the injury report. Team members add players with **Add player** at the top.
 - **Awards**: MVP and custom awards, voted on each game's page.
 - **Badges**: 12 badges in the style of NBA 2K (Bucket Getter, Sharpshooter, Dimer, Glass Cleaner and more), each in Bronze, Silver, Gold and Hall of Fame, earned from stats in finished games, so they move with the season. They show on player pages and the Awards tab, and **How to earn** lists what each tier takes. The cutoffs are in `src/badges.js`.
+- **Book**: over/under bets on player props with in-app coins (never real money). Everyone starts with 1,000. Lines come from each player's averages, and team members can move or pull them. Bets pay even money up to 250 a bet, close at tip-off, and settle from the final box score. The Book tab has your coins and bets and a leaderboard of bettors.
 - **Share recap**: makes a game graphic for the group chat or a story.
 
 A stat left blank means "not tracked". It shows as "—" and is left out of averages (not counted as 0).
 
 ## Who can do what
 
-| | View | Vote for awards | Everything else |
+| | View | Vote for awards and bet | Everything else |
 | --- | --- | --- | --- |
 | Anyone with the link | ✓ | | |
 | Joined with the **fan code** | ✓ | ✓ | |
-| Joined with the **team code** | ✓ | ✓ | ✓ (games, scoring, injuries, roster, settings) |
+| Joined with the **team code** | ✓ | ✓ | ✓ (games, scoring, injuries, roster, settings, prop lines) |
+
+Players can't bet the under on their own props.
 
 Each phone joins once, then picks which player it belongs to. Anyone with the team code can change everything, so keep it to the team.
 
@@ -37,6 +40,8 @@ To switch from basic to secure, whoever owns the Firebase project does two thing
 2. Publish the rules: paste `firestore.rules` into Firestore's **Rules** tab, or run `npx firebase-tools deploy --only firestore:rules --project <your-project-id>`.
 
 The app notices right away. Everyone taps **Join** once more (their code is already filled in) and picks their name again.
+
+Already in secure mode? Publish `firestore.rules` again whenever it changes (the Book needed new rules for lines and bets). Until then the app shows a banner saying so, and the Book stays empty.
 
 ## Setup (new Firebase project)
 
@@ -72,7 +77,7 @@ The UI is plain JavaScript rendered with [lit-html](https://lit.dev/docs/librari
 - `config/group`: the team and fan codes (team members only). `config/public`: team name.
 - `members/{uid}`: who joined on which device, their role, and their player.
 - `players`, `awardCategories`, `injuries`.
-- `games/{id}`: `status` is `scheduled`, `live` or `final` (games from the first version have no status and count as final). Subcollections `stats/{playerId}` and `votes/{voterId}_{categoryId}`.
+- `games/{id}`: `status` is `scheduled`, `live` or `final` (games from the first version have no status and count as final). Subcollections `stats/{playerId}`, `votes/{voterId}_{categoryId}`, `lines/{playerId}_{stat}` (prop lines) and `bets/{id}`. Coins aren't stored: they're worked out from the bets and box scores.
 
 ## Notes
 

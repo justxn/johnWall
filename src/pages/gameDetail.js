@@ -9,6 +9,7 @@ import { openRecap } from '../recap.js';
 import { backLink, dateBlock, icon, livePill, resultPill, when } from '../ui.js';
 import { fmtClock, playerName } from '../util.js';
 import { boxScore, h2hLine, injuryNote } from './parts.js';
+import { betsCard, propsCard } from './props.js';
 
 export const meta = { tab: 'games' };
 
@@ -63,7 +64,9 @@ function scheduled(game) {
             </div>
           </div>`
         : nothing}
-    </section>`;
+    </section>
+    ${propsCard(game)}
+    ${betsCard(game)}`;
 }
 
 function live(game) {
@@ -74,7 +77,8 @@ function live(game) {
       ${metaLine(game)}
       ${isTeam() ? html`<a class="btn block" href="#/games/${game.id}/live">Open the scorekeeper</a>` : nothing}
     </section>
-    <section class="card"><h2>Box score</h2>${boxScore(game) || html`<p class="muted">No stats yet.</p>`}</section>`;
+    <section class="card"><h2>Box score</h2>${boxScore(game) || html`<p class="muted">No stats yet.</p>`}</section>
+    ${betsCard(game)}`;
 }
 
 function seriesLine(game) {
@@ -107,7 +111,8 @@ function final(game) {
       <h2>Awards</h2>
       ${isMember() ? nothing : html`<p class="muted"><a href="#/join">Join</a> to vote.</p>`}
       ${categories.length ? categories.map((c) => awardBlock(c, game)) : html`<p class="muted">No awards set up yet.</p>`}
-    </section>`;
+    </section>
+    ${betsCard(game)}`;
 }
 
 function awardBlock(category, game) {

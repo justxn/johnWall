@@ -11,6 +11,8 @@ export const state = {
   votes: [],
   categories: [],
   injuries: [],
+  bets: [], // sportsbook bets, from every game
+  lines: [], // posted prop lines, from every game
   team: null, // config/public ({ teamName, seeded }), null until someone creates it
   teamSynced: false, // config/public confirmed by the server, not just the offline cache
   uid: undefined, // undefined = auth not checked yet, null = not signed in
@@ -24,7 +26,7 @@ export const state = {
   online: navigator.onLine,
 };
 
-const PUBLIC = ['players', 'games', 'stats', 'votes', 'categories', 'injuries', 'team', 'codes'];
+const PUBLIC = ['players', 'games', 'stats', 'votes', 'categories', 'injuries', 'bets', 'lines', 'team', 'codes'];
 const listeners = new Set();
 
 export const isReady = () =>
@@ -60,14 +62,20 @@ function plain(d) {
   return { id: d.id, ...data };
 }
 
-function watch(key, query) {
+// `optional` is for newer collections: if the database's rules don't allow
+// them yet, they count as empty and the rest of the app keeps working (the
+// error banner still says to publish the new rules).
+function watch(key, query, { optional = false } = {}) {
   onSnapshot(
     query,
     (snap) => {
       state[key] = snap.docs.map(plain);
       mark(key);
     },
-    (err) => fail(key, err),
+    (err) => {
+      fail(key, err);
+      if (optional) mark(key);
+    },
   );
 }
 
@@ -139,6 +147,8 @@ export function startSync() {
   watch('injuries', collection(db, 'injuries'));
   watch('stats', collectionGroup(db, 'stats'));
   watch('votes', collectionGroup(db, 'votes'));
+  watch('bets', collectionGroup(db, 'bets'), { optional: true });
+  watch('lines', collectionGroup(db, 'lines'), { optional: true });
 
   // Metadata changes matter here: one-time setup only runs once the server has
   // confirmed this doc, never off a stale offline copy.
@@ -202,6 +212,8 @@ export const activePlayers = () => sortedPlayers().filter((p) => p.active !== fa
 export const findGame = (id) => state.games.find((g) => g.id === id) || null;
 export const findPlayer = (id) => state.players.find((p) => p.id === id) || null;
 export const gameStats = (gameId) => state.stats.filter((s) => s.gameId === gameId);
+export const gameBets = (gameId) => state.bets.filter((b) => b.gameId === gameId);
+export const gameLines = (gameId) => state.lines.filter((l) => l.gameId === gameId);
 export const activeInjuries = () => state.injuries.filter((i) => !i.clearedOn);
 export const injuryOf = (playerId) => activeInjuries().find((i) => i.playerId === playerId) || null;
 export const teamName = () => state.team?.teamName || 'Intramural Hoops';

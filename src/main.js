@@ -6,6 +6,7 @@ import { isMember, isTeam, myName, myPlayerId, role } from './auth.js';
 import { avatar, closeSheet, icon, openSheet, rerender, setRenderer, sheetLayer, sheetOpen, toastLayer } from './ui.js';
 import { initTheme } from './theme.js';
 import { seedOnce } from './seed.js';
+import { syncAllLines } from './actions.js';
 import * as home from './pages/home.js';
 import * as games from './pages/games.js';
 import * as gameDetail from './pages/gameDetail.js';
@@ -15,6 +16,7 @@ import * as players from './pages/players.js';
 import * as player from './pages/player.js';
 import * as injuries from './pages/injuries.js';
 import * as awards from './pages/awards.js';
+import * as book from './pages/book.js';
 import * as settings from './pages/settings.js';
 import * as join from './pages/join.js';
 
@@ -34,6 +36,7 @@ const routes = [
   [/^#\/players\/([^/]+)$/, player],
   [/^#\/injuries$/, injuries],
   [/^#\/awards$/, awards],
+  [/^#\/book$/, book],
   [/^#\/settings$/, settings],
   [/^#\/join$/, join],
 ];
@@ -43,6 +46,7 @@ const TABS = [
   { id: 'games', href: '#/games', label: 'Games', icon: 'calendar' },
   { id: 'players', href: '#/players', label: 'Players', icon: 'players' },
   { id: 'awards', href: '#/awards', label: 'Awards', icon: 'trophy' },
+  { id: 'book', href: '#/book', label: 'Book', icon: 'ticket' },
 ];
 
 let current = null;
@@ -160,7 +164,11 @@ navigate();
 
 if (configured) {
   subscribe(() => {
-    if (isReady()) seedOnce(state, isTeam());
+    if (isReady()) {
+      seedOnce(state, isTeam());
+      // Team members' phones keep the sportsbook's automatic lines current.
+      if (isTeam()) syncAllLines();
+    }
     rerender();
   });
   startSync();

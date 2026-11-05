@@ -134,7 +134,7 @@ main.loading { min-height: 60dvh; place-items: center; }
 
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   padding-bottom: env(safe-area-inset-bottom);
   background: color-mix(in srgb, var(--card) 92%, transparent);
   backdrop-filter: saturate(1.4) blur(14px);
@@ -430,6 +430,18 @@ input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: n
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--hof) 25%, transparent);
 }
 .medal.locked { filter: grayscale(1); opacity: .45; }
+
+/* ---------- Sportsbook ---------- */
+.prop-row, .bet-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; }
+.prop-row .grow, .bet-row .grow { gap: 2px; }
+.prop-row .btn.sm { padding: 0 12px; }
+.stepper { display: inline-flex; align-items: center; gap: 6px; }
+.stepper b { min-width: 2.6em; text-align: center; font-variant-numeric: tabular-nums; }
+.stepper .btn.sm { width: 36px; padding: 0; }
+.add-prop { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.add-prop .row { align-items: end; flex-wrap: nowrap; }
+.how { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); }
+.coins-big { font-size: 2.4rem; font-weight: 850; line-height: 1; font-variant-numeric: tabular-nums; }
 
 /* ---------- Injuries ---------- */
 .injury { display: grid; gap: 6px; padding: 12px 0; }
