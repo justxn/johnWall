@@ -3,7 +3,8 @@ import { html, nothing } from 'lit-html';
 import { activeInjuries, findPlayer, gameStats, state, teamName } from '../store.js';
 import { SHOOTING, STAT_KEYS, STAT_LABELS, fmtShots, fmtStat, headToHead, resultOf } from '../stats.js';
 import { playedMs } from '../live.js';
-import { injuryPill } from '../ui.js';
+import { BADGES, TIERS, TIER_KEYS, cutoffs } from '../badges.js';
+import { injuryPill, openSheet } from '../ui.js';
 import { playerName } from '../util.js';
 
 // "1–0 vs them · last: W 21–18", or "First meeting".
@@ -59,4 +60,47 @@ export function boxScore(game) {
     <tfoot><tr><td>${teamName()}</td>${cols.map((c) => html`<td>${c.total()}</td>`)}</tr></tfoot>
   </table></div>
   ${rows.some((r) => cols.some((c) => c.blank(r))) ? html`<small class="muted">— = not tracked</small>` : nothing}`;
+}
+
+// --- Badges -----------------------------------------------------------------
+
+// A badge's icon in a ring of its tier's colour: no tier given is plain, -1 is
+// not earned yet (greyed out).
+export const medal = (badge, tier) =>
+  html`<span class="medal ${tier == null ? '' : tier < 0 ? 'locked' : `tier-${TIER_KEYS[tier]}`}" aria-hidden="true">${badge.icon}</span>`;
+
+export const tierPill = (tier, text = TIERS[tier]) => html`<span class="pill tier-${TIER_KEYS[tier]}">${text}</span>`;
+
+// An earned badge: where the player is now and what the next tier takes.
+export const badgeRow = ({ badge, value, tier, next }) => html`<li class="badge-row">
+  ${medal(badge, tier)}
+  <span class="grow">
+    <strong>${badge.name}</strong>
+    <small class="muted">${badge.show(value)} · ${next == null ? 'top tier' : `${TIERS[tier + 1]} at ${badge.cutoff(next)}`}</small>
+  </span>
+  ${tierPill(tier)}
+</li>`;
+
+// Every badge and what each tier takes. Given a player's progress (from
+// badgeProgress), it also shows where they are on each one.
+export function openBadgeSheet(progress = null) {
+  openSheet(
+    () => html`<p class="muted">Badges are earned from stats in finished games, so they move with the season. Each has four tiers: Bronze, Silver, Gold and Hall of Fame.</p>
+      <ul class="list">
+        ${BADGES.map((badge, i) => {
+          const p = progress?.[i];
+          return html`<li class="badge-row">
+            ${medal(badge, p?.tier)}
+            <span class="grow">
+              <strong>${badge.name}</strong>
+              <small class="muted">${badge.about}</small>
+              <small class="muted">${cutoffs(badge)}</small>
+              ${p ? html`<small>${p.value != null ? `Now: ${badge.show(p.value)}` : p.need || 'Not tracked yet'}</small>` : nothing}
+            </span>
+            ${p && p.tier >= 0 ? tierPill(p.tier) : nothing}
+          </li>`;
+        })}
+      </ul>`,
+    { title: 'How to earn badges' },
+  );
 }

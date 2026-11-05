@@ -18,9 +18,11 @@ import {
   gameLog,
   playerLine,
 } from '../stats.js';
+import { badgeProgress, earnedBadges } from '../badges.js';
 import { avatar, backLink, icon, injuryLabel, injuryPill, rerender, resultPill } from '../ui.js';
 import { fmtDate } from '../util.js';
 import { injuryItem, openInjurySheet } from './injuries.js';
+import { badgeRow, openBadgeSheet } from './parts.js';
 
 export const meta = { tab: 'players' };
 
@@ -60,6 +62,7 @@ export function view([id]) {
       <div class="card-head"><h2>Season</h2><small class="muted">${line.gp} ${line.gp === 1 ? 'game' : 'games'}</small></div>
       ${line.gp ? tiles(line) : html`<p class="muted">Hasn't played a game yet.</p>`}
     </section>
+    ${badgesCard(badgeProgress(id, done))}
     ${highsCard(careerHighs(id, done, state.games))}
     ${awardsCard(playerAwards(id, state.games, state.categories, state.votes))}
     ${logCard(gameLog(id, state.stats, state.games))}
@@ -112,6 +115,19 @@ function logLine(line) {
   const stat = (k) => (line[k] != null ? [`${fmtStat(line[k], k)} ${STAT_LABELS[k]}`] : []);
   const shots = SHOOTING.filter((s) => line[s.att] != null).map((s) => `${fmtShots(line[s.made], line[s.att])} ${s.label}`);
   return [...stat('points'), ...shots, ...STAT_KEYS.filter((k) => k !== 'points').flatMap(stat)].join(' · ');
+}
+
+function badgesCard(progress) {
+  const earned = earnedBadges(progress);
+  return html`<section class="card">
+    <div class="card-head">
+      <h2>Badges <small class="muted">${earned.length} of ${progress.length}</small></h2>
+      <button class="link" @click=${() => openBadgeSheet(progress)}>How to earn</button>
+    </div>
+    ${earned.length
+      ? html`<ul class="list">${earned.map(badgeRow)}</ul>`
+      : html`<p class="muted">No badges yet. They're earned from season stats, so they show up as games get played.</p>`}
+  </section>`;
 }
 
 // Turnovers are left out: a high there isn't something to show off.

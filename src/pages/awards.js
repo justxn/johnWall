@@ -1,11 +1,13 @@
 import { html, nothing } from 'lit-html';
-import { state } from '../store.js';
+import { sortedPlayers, state } from '../store.js';
 import { isTeam } from '../auth.js';
 import { addCategory, removeCategory } from '../actions.js';
 import { awardWins, latestWinners } from '../awards.js';
-import { isFinal } from '../stats.js';
+import { TIER_KEYS, TIER_SHORT, badgeHolders } from '../badges.js';
+import { finalStats, isFinal } from '../stats.js';
 import { icon } from '../ui.js';
 import { fmtDate, playerName } from '../util.js';
+import { medal, openBadgeSheet } from './parts.js';
 
 export const meta = { tab: 'awards' };
 
@@ -17,7 +19,25 @@ export function view() {
   return html`
     <h1>Awards</h1>
     ${categories.length ? categories.map((c) => standings(c, wins[c.id] || {})) : html`<section class="card"><p class="muted">No awards yet.</p></section>`}
+    ${badgesCard()}
     ${isTeam() ? addForm() : nothing}`;
+}
+
+// Who holds each badge, best tier first.
+function badgesCard() {
+  const held = badgeHolders(sortedPlayers(), finalStats(state.games, state.stats)).filter((b) => b.holders.length);
+  return html`<section class="card flush">
+    <div class="card-head"><h2>Badges</h2><button class="link" @click=${() => openBadgeSheet()}>How to earn</button></div>
+    ${held.length
+      ? html`<ul class="list">${held.map(({ badge, holders }) => html`<li class="badge-row">
+          ${medal(badge)}
+          <span class="grow">
+            <strong>${badge.name}</strong>
+            <span class="row">${holders.map((h) => html`<a class="pill tier-${TIER_KEYS[h.tier]}" href="#/players/${h.player.id}">${h.player.name} · ${TIER_SHORT[h.tier]}</a>`)}</span>
+          </span>
+        </li>`)}</ul>`
+      : html`<p class="pad muted">No badges yet. They're earned from season stats as games get played.</p>`}
+  </section>`;
 }
 
 function remove(category) {

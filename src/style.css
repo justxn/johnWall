@@ -21,6 +21,13 @@
   --on-warn: #2b1500;
   --ok: #cdeedb;
   --on-ok: #0f4d2c;
+  /* Badge tiers (Gold uses --gold). Same in both themes: each pairs with its own text colour. */
+  --bronze: #e0a370;
+  --on-bronze: #3b1f05;
+  --silver: #d5dbe1;
+  --on-silver: #22272e;
+  --hof: #7c4dff;
+  --on-hof: #ffffff;
   --shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 2px 8px rgb(16 24 40 / 0.06);
   --radius: 16px;
   --tabbar-h: 60px;
@@ -400,6 +407,29 @@ input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: n
 .log-row { display: grid; gap: 2px; padding: 10px 0; color: var(--text); }
 .log-row + .log-row { border-top: 1px solid var(--line); }
 .log-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+/* ---------- Badges ---------- */
+.pill.tier-bronze { background: var(--bronze); color: var(--on-bronze); }
+.pill.tier-silver { background: var(--silver); color: var(--on-silver); }
+.pill.tier-gold { background: var(--gold); color: var(--on-gold); }
+.pill.tier-hof { background: var(--hof); color: var(--on-hof); }
+.badge-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+.card.flush .badge-row { padding: 10px 16px; }
+.badge-row .grow { gap: 2px; }
+.badge-row .row { gap: 6px; margin-top: 4px; }
+.medal {
+  flex: none; width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 1.25rem; line-height: 1;
+  background: var(--card-2); border: 2px solid var(--line);
+}
+.medal.tier-bronze { border-color: var(--bronze); background: color-mix(in srgb, var(--bronze) 25%, var(--card)); }
+.medal.tier-silver { border-color: var(--silver); background: color-mix(in srgb, var(--silver) 35%, var(--card)); }
+.medal.tier-gold { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 25%, var(--card)); }
+.medal.tier-hof {
+  border-color: var(--hof); background: color-mix(in srgb, var(--hof) 22%, var(--card));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hof) 25%, transparent);
+}
+.medal.locked { filter: grayscale(1); opacity: .45; }
 
 /* ---------- Injuries ---------- */
 .injury { display: grid; gap: 6px; padding: 12px 0; }

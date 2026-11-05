@@ -9,6 +9,7 @@ App for our intramural 3v3 basketball team: the schedule, live scorekeeping, box
 - **Live scoring**: for each player, tap +1 (inside the arc), +2 (behind it) or FT, Miss under any shot, and REB, AST, STL, BLK and TOV; the team score adds itself up. Bench/On-court toggles track plus-minus (+/-), and with the game clock, minutes. Undo fixes mis-taps, and anyone with the link can follow the score live.
 - **Players**: leaderboard for any stat (per game or totals) and for FG%, 3P% and FT%, player pages with game log, career highs, awards and injuries, and the injury report. Team members add players with **Add player** at the top.
 - **Awards**: MVP and custom awards, voted on each game's page.
+- **Badges**: 12 badges in the style of NBA 2K (Bucket Getter, Sharpshooter, Dimer, Glass Cleaner and more), each in Bronze, Silver, Gold and Hall of Fame, earned from stats in finished games, so they move with the season. They show on player pages and the Awards tab, and **How to earn** lists what each tier takes. The cutoffs are in `src/badges.js`.
 - **Share recap**: makes a game graphic for the group chat or a story.
 
 A stat left blank means "not tracked". It shows as "—" and is left out of averages (not counted as 0).
