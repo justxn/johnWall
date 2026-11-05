@@ -13,7 +13,7 @@ import { db } from './firebase.js';
 import { gameStats, state } from './store.js';
 import { voteId } from './awards.js';
 import { voterKey } from './auth.js';
-import { STAT_KEYS } from './stats.js';
+import { SHOOTING_FIELDS, STAT_KEYS } from './stats.js';
 import { clockToggle, courtToggle, courtUsed, finalMinutes } from './live.js';
 import { toast } from './ui.js';
 
@@ -82,10 +82,12 @@ export function castVote(gameId, categoryId, nomineeId) {
 // --- Live scoring -----------------------------------------------------------
 
 // Tracked stats start at 0; untracked ones stay null ("not tracked").
+// 'shooting' in `tracked` means makes and misses are being kept.
 const zeroLine = (gameId, playerId, tracked) => ({
   gameId,
   playerId,
   ...Object.fromEntries(STAT_KEYS.map((k) => [k, tracked.includes(k) ? 0 : null])),
+  ...Object.fromEntries(SHOOTING_FIELDS.map((k) => [k, tracked.includes('shooting') ? 0 : null])),
 });
 
 // `game` may be a brand-new game (no doc yet) or a scheduled one.
@@ -109,15 +111,16 @@ export function startLive(game, playerIds, tracked, { isNew }) {
 export const addLivePlayer = (game, playerId) =>
   send(setDoc(statRef(game.id, playerId), zeroLine(game.id, playerId, game.live?.tracked ?? STAT_KEYS)), 'Player');
 
-// Points also move the team score, so the box score and the final always agree.
-// `court` is who was on the floor for a basket (from plusMinusCourt): it goes
-// into each of their plus-minus. Undo passes the same players back with -n.
-export function scorePlayer(gameId, playerId, stat, n, court = []) {
+// One tap's stat changes for a player, e.g. { points: 2, fgm: 1, fga: 1 } for
+// a made shot. Points also move the team score, so the box score and the final
+// always agree, and go into the plus-minus of everyone in `court` (who was on
+// the floor, from plusMinusCourt). Undo sends the same changes negated.
+export function scorePlayer(gameId, playerId, deltas, court = []) {
   const batch = writeBatch(db);
-  const changes = { [playerId]: { [stat]: increment(n) } };
-  if (stat === 'points') {
-    batch.update(gameRef(gameId), { teamScore: increment(n) });
-    for (const pid of court) changes[pid] = { ...changes[pid], plusMinus: increment(n) };
+  const changes = { [playerId]: Object.fromEntries(Object.entries(deltas).map(([k, n]) => [k, increment(n)])) };
+  if (deltas.points) {
+    batch.update(gameRef(gameId), { teamScore: increment(deltas.points) });
+    for (const pid of court) changes[pid] = { ...changes[pid], plusMinus: increment(deltas.points) };
   }
   for (const [pid, fields] of Object.entries(changes)) batch.update(statRef(gameId, pid), fields);
   return send(batch.commit(), 'Score');

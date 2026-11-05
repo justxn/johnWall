@@ -17,6 +17,55 @@ export const STAT_NAMES = {
 // Plus-minus is the score difference while a player is out there.
 export const COURT_STATS = ['minutes', 'plusMinus'];
 
+// Shooting is kept as makes and attempts on each stat line, blank when not
+// tracked. FG is every shot from the floor (threes included), 3PT only shots
+// from behind the arc, FT free throws.
+export const SHOOTING = [
+  { key: 'fg', made: 'fgm', att: 'fga', label: 'FG', pct: 'FG%', name: 'Field goals' },
+  { key: 'three', made: 'fg3m', att: 'fg3a', label: '3PT', pct: '3P%', name: 'Threes' },
+  { key: 'ft', made: 'ftm', att: 'fta', label: 'FT', pct: 'FT%', name: 'Free throws' },
+];
+export const SHOOTING_FIELDS = SHOOTING.flatMap((s) => [s.made, s.att]);
+export const shootingOf = (key) => SHOOTING.find((s) => s.key === key) || null;
+
+// How baskets count in our league (1s and 2s with free throws, like FIBA
+// 3x3): 1 inside the arc, 2 behind it, 1 per free throw. Each shot also
+// lists the shooting stats it counts toward.
+export const SHOTS = {
+  inside: { points: 1, made: ['fgm'], att: ['fga'] },
+  three: { points: 2, made: ['fgm', 'fg3m'], att: ['fga', 'fg3a'] },
+  ft: { points: 1, made: ['ftm'], att: ['fta'] },
+};
+
+// The stat changes for one shot: its points if it went in, plus the makes and
+// attempts when shooting is being tracked.
+export function shotDeltas(shot, made, { shooting = true } = {}) {
+  const { points, made: madeKeys, att } = SHOTS[shot];
+  const out = made ? { points } : {};
+  if (shooting) {
+    for (const k of att) out[k] = 1;
+    if (made) for (const k of madeKeys) out[k] = 1;
+  }
+  return out;
+}
+
+// Points the makes add up to, or null unless every kind of shot was tracked.
+export function pointsFromMakes(line) {
+  if (SHOOTING.some((s) => line[s.made] == null)) return null;
+  return (line.fgm - line.fg3m) * SHOTS.inside.points + line.fg3m * SHOTS.three.points + line.ftm * SHOTS.ft.points;
+}
+
+// What's wrong with typed-in shooting numbers, or null when they make sense.
+export function shootingProblem(line) {
+  for (const s of SHOOTING) {
+    if ((line[s.made] == null) !== (line[s.att] == null)) return `fill in both ${s.label} made and attempted, or neither`;
+    if (line[s.made] > line[s.att]) return `${s.label} made can't be more than attempted`;
+  }
+  if (line.fg3a != null && line.fga == null) return 'fill in FG too (threes count toward it)';
+  if (line.fg3m > line.fgm || line.fg3a > line.fga) return 'threes count toward FG too, so 3PT can\'t be more than FG';
+  return null;
+}
+
 // Games saved before scheduling existed have no status; they're all results.
 export const statusOf = (game) => game.status || 'final';
 export const isFinal = (game) => statusOf(game) === 'final';
@@ -84,12 +133,20 @@ export function finalStats(games, stats) {
 // so averages divide by that, not by games played.
 export function playerLine(playerId, stats) {
   const rows = stats.filter((s) => s.playerId === playerId);
-  const line = { gp: rows.length, total: {}, tracked: {}, avg: {} };
+  const line = { gp: rows.length, total: {}, tracked: {}, avg: {}, shots: {} };
   for (const k of STAT_KEYS) {
     const vals = rows.map((r) => r[k]).filter((v) => v != null);
     line.tracked[k] = vals.length;
     line.total[k] = vals.reduce((a, b) => a + b, 0);
     line.avg[k] = vals.length ? line.total[k] / vals.length : null;
+  }
+  // Shooting adds up makes and attempts, so a percentage is everything made
+  // over everything tried, not an average of each game's percentage.
+  for (const s of SHOOTING) {
+    const games = rows.filter((r) => r[s.made] != null && r[s.att] != null);
+    const made = games.reduce((n, r) => n + r[s.made], 0);
+    const att = games.reduce((n, r) => n + r[s.att], 0);
+    line.shots[s.key] = { made, att, games: games.length, pct: att ? made / att : null };
   }
   return line;
 }
@@ -101,6 +158,16 @@ export function leaders(players, stats, key, { totals = false } = {}) {
     .filter(({ line }) => line.tracked[key] > 0)
     .map((row) => ({ ...row, value: totals ? row.line.total[key] : row.line.avg[key] }))
     .sort((a, b) => b.value - a.value || a.player.name.localeCompare(b.player.name));
+}
+
+// Shooting percentage ranking ('fg', 'three' or 'ft'). Players need at least
+// one attempt; at the same percentage, more attempts ranks higher.
+export function shootingLeaders(players, stats, key) {
+  return players
+    .map((player) => ({ player, line: playerLine(player.id, stats) }))
+    .filter(({ line }) => line.shots[key].att > 0)
+    .map((row) => ({ ...row, value: row.line.shots[key].pct }))
+    .sort((a, b) => b.value - a.value || b.line.shots[key].att - a.line.shots[key].att || a.player.name.localeCompare(b.player.name));
 }
 
 // Single-game bests: { points: { value, gameId } | null, ... }. Ties keep the
@@ -166,3 +233,7 @@ function signed(text) {
 // Pass the stat key so plus-minus gets its sign.
 export const fmtAvg = (v, key) => (v == null ? '—' : key === 'plusMinus' ? signed(v.toFixed(1)) : v.toFixed(1));
 export const fmtStat = (v, key) => (v == null ? '—' : key === 'plusMinus' ? signed(String(v)) : String(v));
+
+// Shooting: "4-9" in a box score, "44.4%" as a percentage (a 0–1 fraction).
+export const fmtShots = (made, att) => (made == null || att == null ? '—' : `${made}-${att}`);
+export const fmtPct = (p) => (p == null ? '—' : `${(100 * p).toFixed(1)}%`);

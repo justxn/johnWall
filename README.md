@@ -6,8 +6,8 @@ App for our intramural 3v3 basketball team: the schedule, live scorekeeping, box
 
 - **Home**: next game, season record and streak, team leaders, latest MVP, injury report, recent results.
 - **Games**: upcoming games, live games, results. Add a final score with a box score, or schedule a game.
-- **Live scoring**: tap +1/+2/+3, REB, AST, STL, BLK and TOV for each player; the team score adds itself up. Bench/On-court toggles track plus-minus (+/-), and with the game clock, minutes. Undo fixes mis-taps, and anyone with the link can follow the score live.
-- **Players**: leaderboard for any stat (per game or totals), player pages with game log, career highs, awards and injuries, and the injury report. Team members add players with **Add player** at the top.
+- **Live scoring**: for each player, tap +1 (inside the arc), +2 (behind it) or FT, Miss under any shot, and REB, AST, STL, BLK and TOV; the team score adds itself up. Bench/On-court toggles track plus-minus (+/-), and with the game clock, minutes. Undo fixes mis-taps, and anyone with the link can follow the score live.
+- **Players**: leaderboard for any stat (per game or totals) and for FG%, 3P% and FT%, player pages with game log, career highs, awards and injuries, and the injury report. Team members add players with **Add player** at the top.
 - **Awards**: MVP and custom awards, voted on each game's page.
 - **Share recap**: makes a game graphic for the group chat or a story.
 
@@ -76,7 +76,8 @@ The UI is plain JavaScript rendered with [lit-html](https://lit.dev/docs/librari
 ## Notes
 
 - Ties can't be saved: one team has to win.
-- The +1/+2/+3 buttons cover both 1s-and-2s and 2s-and-3s scoring.
+- Scoring follows the league's 1s and 2s: 1 inside the arc, 2 behind it, 1 per free throw. If that ever changes, it's `SHOTS` in `src/stats.js`. 3PT and 3P% mean shots from behind the arc.
+- Shooting percentages are everything made over everything attempted, for the season or a game. FG counts every shot from the floor, threes included, the same as NBA box scores. They need misses tracked: in live scoring that's the Misses option (on by default).
 - Live minutes count game-clock time on the court, so stopping the clock stops everyone's minutes.
 - Plus-minus (+/-) is the score difference while a player is on the court: every basket, ours or theirs, counts for whoever is set to On court when it's tapped. It doesn't depend on the clock, so free throws with the clock stopped still count. In a box score entered by hand, type it in (the ± button flips the sign).
 - If nobody is ever put on the court during a live game, its minutes and +/- are saved as not tracked rather than all zeros.

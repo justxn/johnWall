@@ -1,8 +1,19 @@
 import { html, nothing } from 'lit-html';
 import { repeat } from 'lit-html/directives/repeat.js';
-import { findGame, gameStats, sortedPlayers, state, teamName } from '../store.js';
+import { findGame, findPlayer, gameStats, sortedPlayers, state, teamName } from '../store.js';
 import { newGameId, saveResult, saveScheduled } from '../actions.js';
-import { STAT_KEYS, STAT_LABELS, byDateAsc, byDateDesc, parseStat, pointsCheck, statusOf } from '../stats.js';
+import {
+  SHOOTING_FIELDS,
+  STAT_KEYS,
+  STAT_LABELS,
+  byDateAsc,
+  byDateDesc,
+  parseStat,
+  pointsCheck,
+  pointsFromMakes,
+  shootingProblem,
+  statusOf,
+} from '../stats.js';
 import { backLink, rerender } from '../ui.js';
 import { todayISO } from '../util.js';
 
@@ -46,6 +57,7 @@ function setup(id, mode) {
     showInactive: false,
     error: '',
     mismatch: null,
+    makes: {}, // playerId -> { fromMakes, points } when their makes don't add up to their PTS
   };
 }
 
@@ -114,14 +126,26 @@ function entry(player) {
       <span class="sr-only">Played</span>
     </label>
     <div class="statgrid">
-      ${STAT_KEYS.map((k) => (k === 'plusMinus'
-        ? plusMinusField(player, line)
-        : html`<label>${STAT_LABELS[k]}
-            <input name="${k}:${player.id}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" value=${val(line[k])} />
-          </label>`))}
+      ${STAT_KEYS.map((k) => (k === 'plusMinus' ? plusMinusField(player, line) : numberField(k, STAT_LABELS[k], player, line)))}
     </div>
+    <div class="statgrid shots">
+      ${SHOT_INPUTS.map(([k, label]) => numberField(k, label, player, line))}
+    </div>
+    ${on && form.makes[player.id]
+      ? html`<p class="warning">Makes add up to ${form.makes[player.id].fromMakes} points, but PTS says ${form.makes[player.id].points}. You can still save.</p>`
+      : nothing}
   </div>`;
 }
+
+const numberField = (k, label, player, line) => html`<label>${label}
+  <input name="${k}:${player.id}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" value=${val(line[k])} />
+</label>`;
+
+// Shooting, in stat-sheet order (made, then attempted).
+const SHOT_INPUTS = [['fgm', 'FGM'], ['fga', 'FGA'], ['fg3m', '3PM'], ['fg3a', '3PA'], ['ftm', 'FTM'], ['fta', 'FTA']];
+
+// One player's typed-in line, shooting included (blank = not tracked).
+const readLine = (fd, pid) => Object.fromEntries([...STAT_KEYS, ...SHOOTING_FIELDS].map((k) => [k, parseStat(fd.get(`${k}:${pid}`), k)]));
 
 // Phone number pads have no minus key, so plus-minus gets a ± button.
 const plusMinusField = (player, line) => html`<div class="pm-field">
@@ -138,13 +162,20 @@ function flipSign(e) {
   input.focus();
 }
 
-// Re-check the "points don't add up" warning as people type.
+// Re-check the "points don't add up" warnings as people type: player points
+// vs the team score, and each player's makes vs their points.
 function onInput(e) {
   const fd = new FormData(e.currentTarget);
-  const lines = [...form.played].map((pid) => ({ points: parseStat(fd.get(`points:${pid}`)) }));
-  const next = pointsCheck(parseStat(fd.get('teamScore')), lines);
-  if (JSON.stringify(next) !== JSON.stringify(form.mismatch)) {
-    form.mismatch = next;
+  const lines = [...form.played].map((pid) => ({ pid, ...readLine(fd, pid) }));
+  const mismatch = pointsCheck(parseStat(fd.get('teamScore')), lines);
+  const makes = {};
+  for (const line of lines) {
+    const fromMakes = pointsFromMakes(line);
+    if (fromMakes != null && line.points != null && fromMakes !== line.points) makes[line.pid] = { fromMakes, points: line.points };
+  }
+  if (JSON.stringify([mismatch, makes]) !== JSON.stringify([form.mismatch, form.makes])) {
+    form.mismatch = mismatch;
+    form.makes = makes;
     rerender();
   }
 }
@@ -174,7 +205,7 @@ function resultForm(game) {
       <section class="card stack">
         <div>
           <h2>Box score</h2>
-          <p class="hint">Switch on everyone who played. Leave a stat blank if nobody tracked it.</p>
+          <p class="hint">Switch on everyone who played. Leave a stat blank if nobody tracked it. FG counts every shot from the floor, threes included.</p>
         </div>
         ${everyone.length ? nothing : html`<p class="muted">No players yet. Add them in Settings → Roster.</p>`}
         ${repeat(shown, (p) => p.id, entry)}
@@ -205,8 +236,12 @@ function submitResult(e) {
 
   const lines = {};
   for (const p of state.players) {
-    if (form.played.has(p.id)) lines[p.id] = Object.fromEntries(STAT_KEYS.map((k) => [k, parseStat(fd.get(`${k}:${p.id}`), k)]));
+    if (form.played.has(p.id)) lines[p.id] = readLine(fd, p.id);
     else if (form.lines[p.id]) lines[p.id] = null; // was in the box score, switched off now
+  }
+  for (const [pid, line] of Object.entries(lines)) {
+    const problem = line && shootingProblem(line);
+    if (problem) return fail(`${findPlayer(pid)?.name ?? 'A player'}: ${problem}.`);
   }
   const fields = {
     opponent,

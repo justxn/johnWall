@@ -3,7 +3,21 @@ import { findGame, findPlayer, injuryOf, state } from '../store.js';
 import { isTeam, myPlayerId } from '../auth.js';
 import { updatePlayer } from '../actions.js';
 import { playerAwards } from '../awards.js';
-import { AVG_LABELS, STAT_KEYS, STAT_LABELS, STAT_NAMES, careerHighs, finalStats, fmtAvg, fmtStat, gameLog, playerLine } from '../stats.js';
+import {
+  AVG_LABELS,
+  SHOOTING,
+  STAT_KEYS,
+  STAT_LABELS,
+  STAT_NAMES,
+  careerHighs,
+  finalStats,
+  fmtAvg,
+  fmtPct,
+  fmtShots,
+  fmtStat,
+  gameLog,
+  playerLine,
+} from '../stats.js';
 import { avatar, backLink, icon, injuryLabel, injuryPill, rerender, resultPill } from '../ui.js';
 import { fmtDate } from '../util.js';
 import { injuryItem, openInjurySheet } from './injuries.js';
@@ -80,7 +94,25 @@ const tiles = (line) => html`<div class="tiles">
     <strong>${fmtAvg(line.avg[k], k)}</strong>
     <span class="hint">${line.tracked[k] === 0 ? 'not tracked' : line.tracked[k] < line.gp ? `${line.tracked[k]} of ${line.gp} games` : `${fmtStat(line.total[k], k)} total`}</span>
   </div>`)}
+</div>
+<h3>Shooting</h3>
+<div class="tiles">
+  ${SHOOTING.map((s) => {
+    const shots = line.shots[s.key];
+    return html`<div class="tile">
+      <small class="muted">${s.pct}</small>
+      <strong>${fmtPct(shots.pct)}</strong>
+      <span class="hint">${shots.games ? `${shots.made}/${shots.att}` : 'not tracked'}</span>
+    </div>`;
+  })}
 </div>`;
+
+// "8 PTS · 3-5 FG · 1-2 3PT · 2 REB · …", with shooting right after points.
+function logLine(line) {
+  const stat = (k) => (line[k] != null ? [`${fmtStat(line[k], k)} ${STAT_LABELS[k]}`] : []);
+  const shots = SHOOTING.filter((s) => line[s.att] != null).map((s) => `${fmtShots(line[s.made], line[s.att])} ${s.label}`);
+  return [...stat('points'), ...shots, ...STAT_KEYS.filter((k) => k !== 'points').flatMap(stat)].join(' · ');
+}
 
 // Turnovers are left out: a high there isn't something to show off.
 function highsCard(highs) {
@@ -119,7 +151,7 @@ const logCard = (log) =>
               <strong class="ellipsis">vs ${game.opponent}</strong>
               <small class="muted">${game.teamScore}–${game.opponentScore} · ${fmtDate(game.date, { weekday: false })}</small>
             </span>
-            <small class="muted">${STAT_KEYS.filter((k) => line[k] != null).map((k) => `${fmtStat(line[k], k)} ${STAT_LABELS[k]}`).join(' · ') || 'No stats tracked'}</small>
+            <small class="muted">${logLine(line) || 'No stats tracked'}</small>
           </a>`)}
         </div>
       </section>`

@@ -3,7 +3,22 @@ import { activeInjuries, injuryOf, sortedPlayers, state } from '../store.js';
 import { isTeam } from '../auth.js';
 import { addPlayer } from '../actions.js';
 import { awardWins } from '../awards.js';
-import { AVG_LABELS, STAT_KEYS, STAT_LABELS, STAT_NAMES, finalStats, fmtAvg, fmtStat, isFinal, leaders, playerLine } from '../stats.js';
+import {
+  AVG_LABELS,
+  SHOOTING,
+  STAT_KEYS,
+  STAT_LABELS,
+  STAT_NAMES,
+  finalStats,
+  fmtAvg,
+  fmtPct,
+  fmtStat,
+  isFinal,
+  leaders,
+  playerLine,
+  shootingLeaders,
+  shootingOf,
+} from '../stats.js';
 import { icon, injuryPill, openSheet, rerender, segmented, toast } from '../ui.js';
 import { normName } from '../util.js';
 
@@ -58,9 +73,14 @@ function choose(next) {
   rerender();
 }
 
+// Leaderboard tabs: points, then shooting percentages, then everything else.
+const TABS = ['points', ...SHOOTING.map((s) => s.key), ...STAT_KEYS.filter((k) => k !== 'points'), 'awards'];
+const tabLabel = (k) => (k === 'awards' ? '🏆 Awards' : shootingOf(k)?.pct ?? STAT_LABELS[k]);
+
 function ranking() {
   const players = sortedPlayers();
   const done = finalStats(state.games, state.stats);
+  if (shootingOf(stat)) return shootingLeaders(players, done, stat);
   if (stat !== 'awards') return leaders(players, done, stat, { totals });
   const wins = awardWins(state.games.filter(isFinal), state.categories, state.votes);
   const count = (id) => Object.values(wins).reduce((n, byPlayer) => n + (byPlayer[id] || 0), 0);
@@ -70,11 +90,16 @@ function ranking() {
     .sort((a, b) => b.value - a.value || a.player.name.localeCompare(b.player.name));
 }
 
-const shown = (value) => (stat === 'awards' ? String(value) : totals ? fmtStat(value, stat) : fmtAvg(value, stat));
+function shown(value) {
+  if (stat === 'awards') return String(value);
+  if (shootingOf(stat)) return fmtPct(value);
+  return totals ? fmtStat(value, stat) : fmtAvg(value, stat);
+}
 
 function sub(row) {
   const { gp, tracked } = row.line;
   if (stat === 'awards') return `${row.value === 1 ? 'award' : 'awards'}`;
+  if (shootingOf(stat)) return `${row.line.shots[stat].made}/${row.line.shots[stat].att}`;
   const partial = tracked[stat] < gp ? ` · ${tracked[stat]} tracked` : '';
   return `${gp} GP${partial}`;
 }
@@ -92,18 +117,20 @@ const rowView = (row, i) => html`<a class="lb-row" href="#/players/${row.player.
 export function view() {
   const rows = ranking();
   const others = sortedPlayers().filter((p) => p.active !== false && !rows.some((r) => r.player.id === p.id));
-  const label = stat === 'awards' ? 'Awards won' : totals ? `Total ${STAT_NAMES[stat].toLowerCase()}` : AVG_LABELS[stat];
+  const shot = shootingOf(stat);
+  const label = stat === 'awards' ? 'Awards won' : shot ? shot.pct : totals ? `Total ${STAT_NAMES[stat].toLowerCase()}` : AVG_LABELS[stat];
+  const none = stat === 'awards' ? 'No awards won yet.' : `No ${(shot ? shot.name : STAT_NAMES[stat]).toLowerCase()} tracked yet.`;
   return html`
     ${playersHeader('stats')}
     <div class="chips" role="tablist" aria-label="Stat">
-      ${[...STAT_KEYS, 'awards'].map((k) => html`<button
+      ${TABS.map((k) => html`<button
         role="tab"
         class="chip ${stat === k ? 'on' : ''}"
         aria-selected=${stat === k ? 'true' : 'false'}
         @click=${() => choose(k)}
-      >${k === 'awards' ? '🏆 Awards' : STAT_LABELS[k]}</button>`)}
+      >${tabLabel(k)}</button>`)}
     </div>
-    ${stat === 'awards'
+    ${stat === 'awards' || shot
       ? nothing
       : segmented(
           [
@@ -116,7 +143,7 @@ export function view() {
       <div class="card-head"><h2>${label}</h2>${isTeam() ? html`<a href="#/settings">Roster</a>` : nothing}</div>
       ${rows.length
         ? html`<div>${rows.map(rowView)}</div>`
-        : html`<p class="pad muted">${stat === 'awards' ? 'No awards won yet.' : `No ${STAT_NAMES[stat].toLowerCase()} tracked yet.`}</p>`}
+        : html`<p class="pad muted">${none}</p>`}
     </section>
     ${others.length
       ? html`<section class="card flush">

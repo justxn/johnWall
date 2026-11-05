@@ -4,6 +4,8 @@ import {
   careerHighs,
   finalStats,
   fmtAvg,
+  fmtPct,
+  fmtShots,
   fmtStat,
   gameLog,
   headToHead,
@@ -12,7 +14,11 @@ import {
   parseStat,
   playerLine,
   pointsCheck,
+  pointsFromMakes,
   record,
+  shootingLeaders,
+  shootingProblem,
+  shotDeltas,
   streak,
   teamAverages,
   upcoming,
@@ -225,5 +231,71 @@ describe('pointsCheck', () => {
     expect(pointsCheck(21, [{ points: 10 }, { points: null }])).toBeNull();
     expect(pointsCheck(null, [{ points: 10 }])).toBeNull();
     expect(pointsCheck(21, [])).toBeNull();
+  });
+});
+
+describe('shooting', () => {
+  it('records each tap with our league values: 1 inside, 2 behind the arc, 1 per free throw', () => {
+    expect(shotDeltas('inside', true)).toEqual({ points: 1, fgm: 1, fga: 1 });
+    expect(shotDeltas('three', true)).toEqual({ points: 2, fgm: 1, fga: 1, fg3m: 1, fg3a: 1 });
+    expect(shotDeltas('ft', true)).toEqual({ points: 1, ftm: 1, fta: 1 });
+  });
+
+  it('counts a miss as an attempt only', () => {
+    expect(shotDeltas('inside', false)).toEqual({ fga: 1 });
+    expect(shotDeltas('three', false)).toEqual({ fga: 1, fg3a: 1 });
+    expect(shotDeltas('ft', false)).toEqual({ fta: 1 });
+  });
+
+  it('only scores points when misses are not being tracked', () => {
+    expect(shotDeltas('three', true, { shooting: false })).toEqual({ points: 2 });
+    expect(shotDeltas('ft', false, { shooting: false })).toEqual({});
+  });
+
+  it('adds makes up to points', () => {
+    // 3 inside (1 each) + 2 threes (2 each) + 3 free throws = 10
+    expect(pointsFromMakes({ fgm: 5, fg3m: 2, ftm: 3 })).toBe(10);
+    expect(pointsFromMakes({ fgm: 5, fg3m: 2, ftm: null })).toBeNull();
+  });
+
+  it('catches typed-in shooting that cannot be right', () => {
+    const ok = { fgm: 4, fga: 9, fg3m: 1, fg3a: 3, ftm: 2, fta: 2 };
+    expect(shootingProblem(ok)).toBeNull();
+    expect(shootingProblem({})).toBeNull(); // nothing tracked is fine
+    expect(shootingProblem({ ...ok, ftm: 3 })).toMatch(/FT made can't be more than attempted/);
+    expect(shootingProblem({ ...ok, fga: null })).toMatch(/both FG made and attempted/);
+    expect(shootingProblem({ ...ok, fgm: null, fga: null })).toMatch(/fill in FG too/);
+    expect(shootingProblem({ ...ok, fgm: 0, fga: 9 })).toMatch(/3PT can't be more than FG/);
+    expect(shootingProblem({ ...ok, fga: 2, fgm: 2, fg3m: 1 })).toMatch(/3PT can't be more than FG/);
+  });
+
+  const stats = [
+    { gameId: 'g1', playerId: 'p1', fgm: 4, fga: 10, fg3m: 1, fg3a: 4, ftm: 2, fta: 2 },
+    { gameId: 'g2', playerId: 'p1', fgm: 6, fga: 10, fg3m: 2, fg3a: 4, ftm: 0, fta: 0 },
+    { gameId: 'g3', playerId: 'p1', points: 5, fgm: null, fga: null }, // shooting not tracked
+    { gameId: 'g1', playerId: 'p2', fgm: 1, fga: 2, fg3m: 0, fg3a: 0, ftm: 0, fta: 0 },
+    { gameId: 'g1', playerId: 'p3', fgm: 5, fga: 10, fg3m: 0, fg3a: 1, ftm: 1, fta: 4 },
+  ];
+
+  it('works out season percentages from total makes and attempts', () => {
+    const { shots } = playerLine('p1', stats);
+    expect(shots.fg).toEqual({ made: 10, att: 20, games: 2, pct: 0.5 });
+    expect(shots.three).toEqual({ made: 3, att: 8, games: 2, pct: 0.375 });
+    expect(shots.ft).toEqual({ made: 2, att: 2, games: 2, pct: 1 });
+    expect(playerLine('p2', stats).shots.three.pct).toBeNull(); // no attempts
+  });
+
+  it('ranks shooters by percentage, more attempts first on a tie, needing an attempt', () => {
+    const players = [{ id: 'p1', name: 'Marcus' }, { id: 'p2', name: 'Devon' }, { id: 'p3', name: 'Tyler' }];
+    expect(shootingLeaders(players, stats, 'fg').map((r) => [r.player.id, r.value])).toEqual([['p1', 0.5], ['p3', 0.5], ['p2', 0.5]]);
+    expect(shootingLeaders(players, stats, 'three').map((r) => r.player.id)).toEqual(['p1', 'p3']);
+  });
+
+  it('formats shooting', () => {
+    expect(fmtShots(4, 9)).toBe('4-9');
+    expect(fmtShots(null, null)).toBe('—');
+    expect(fmtPct(4 / 9)).toBe('44.4%');
+    expect(fmtPct(1)).toBe('100.0%');
+    expect(fmtPct(null)).toBe('—');
   });
 });
