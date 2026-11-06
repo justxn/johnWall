@@ -1,5 +1,5 @@
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, collectionGroup, doc, onSnapshot } from 'firebase/firestore';
+import { collection, collectionGroup, doc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { auth, db } from './firebase.js';
 
 // Live mirror of Firestore. stats and votes come from collection-group
@@ -13,6 +13,7 @@ export const state = {
   injuries: [],
   bets: [], // sportsbook bets, from every game
   lines: [], // posted prop lines, from every game
+  comments: [], // News tab comments from fans, newest 200
   team: null, // config/public ({ teamName, seeded }), null until someone creates it
   teamSynced: false, // config/public confirmed by the server, not just the offline cache
   uid: undefined, // undefined = auth not checked yet, null = not signed in
@@ -26,7 +27,7 @@ export const state = {
   online: navigator.onLine,
 };
 
-const PUBLIC = ['players', 'games', 'stats', 'votes', 'categories', 'injuries', 'bets', 'lines', 'team', 'codes'];
+const PUBLIC = ['players', 'games', 'stats', 'votes', 'categories', 'injuries', 'bets', 'lines', 'comments', 'team', 'codes'];
 const listeners = new Set();
 
 export const isReady = () =>
@@ -149,6 +150,7 @@ export function startSync() {
   watch('votes', collectionGroup(db, 'votes'));
   watch('bets', collectionGroup(db, 'bets'), { optional: true });
   watch('lines', collectionGroup(db, 'lines'), { optional: true });
+  watch('comments', query(collection(db, 'comments'), orderBy('createdAt', 'desc'), limit(200)), { optional: true });
 
   // Metadata changes matter here: one-time setup only runs once the server has
   // confirmed this doc, never off a stale offline copy.

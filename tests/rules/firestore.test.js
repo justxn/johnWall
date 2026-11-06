@@ -269,3 +269,38 @@ describe('sportsbook', () => {
     await assertSucceeds(deleteDoc(doc(db('captain'), 'games/g2/bets/b3'))); // the team can clean up any time
   });
 });
+
+describe('news comments', () => {
+  const comment = (uid, extra = {}) => setDoc(doc(collection(db(uid), 'comments')), {
+    itemId: 'recap:g1', text: 'Nice game', author: 'Fan 1234', uid, isPlayer: false, createdAt: serverTimestamp(), ...extra,
+  });
+
+  it('lets anyone read', async () => {
+    await assertSucceeds(getDocs(collection(db(), 'comments')));
+  });
+
+  it('takes comments from any signed-in user, even a non-member, as themselves', async () => {
+    await assertSucceeds(comment('stranger'));
+    await assertFails(comment(null));
+    await assertFails(comment('stranger', { uid: 'someone-else' }));
+  });
+
+  it('limits length, fields and the player badge', async () => {
+    await assertFails(comment('stranger', { text: '' }));
+    await assertFails(comment('stranger', { text: 'x'.repeat(141) }));
+    await assertFails(comment('stranger', { extra: 1 }));
+    await assertFails(comment('stranger', { isPlayer: true })); // only team members linked to a player
+    await assertSucceeds(comment('captain', { isPlayer: true }));
+  });
+
+  it('lets authors and the team delete, but nobody edit', async () => {
+    await seed(async (fs) => {
+      await setDoc(doc(fs, 'comments/c1'), { itemId: 's', text: 'hi', author: 'A', uid: 'stranger', isPlayer: false });
+    });
+    await assertFails(updateDoc(doc(db('stranger'), 'comments/c1'), { text: 'edited' }));
+    await assertFails(deleteDoc(doc(db('fan'), 'comments/c1')));
+    await assertSucceeds(deleteDoc(doc(db('stranger'), 'comments/c1')));
+    await seed((fs) => setDoc(doc(fs, 'comments/c2'), { itemId: 's', text: 'hi', author: 'A', uid: 'stranger', isPlayer: false }));
+    await assertSucceeds(deleteDoc(doc(db('captain'), 'comments/c2')));
+  });
+});

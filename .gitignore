@@ -6,3 +6,6 @@ dist
 # Firebase emulator logs
 *-debug.log
 .firebase/
+
+# Local testing notes
+TESTING.md

@@ -87,6 +87,23 @@ service cloud.firestore {
       allow write: if isTeam();
     }
 
+    // News tab comments. Anyone signed in (even without joining) can post as
+    // themselves; only the author or the team can remove one. No edits.
+    match /comments/{id} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['itemId', 'text', 'author', 'uid', 'isPlayer', 'createdAt'])
+        && request.resource.data.itemId is string && request.resource.data.itemId.size() <= 120
+        && request.resource.data.text is string
+        && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 140
+        && request.resource.data.author is string && request.resource.data.author.size() <= 60
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.isPlayer is bool
+        && (request.resource.data.isPlayer == false || myPlayerId() != null)
+        && request.resource.data.createdAt == request.time;
+      allow delete: if isTeam() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+
     match /games/{gameId} {
       allow read: if true;
       allow write: if isTeam();
