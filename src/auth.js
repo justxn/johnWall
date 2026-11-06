@@ -85,6 +85,17 @@ async function signIn() {
   return auth.currentUser.uid;
 }
 
+// For commenting without joining: anyone gets an anonymous sign-in. Resolves to
+// the uid, or null when sign-in isn't available (the original open rules don't
+// need one).
+export async function ensureSignIn() {
+  try {
+    return await signIn();
+  } catch {
+    return null;
+  }
+}
+
 // The rules accept the member doc only if the code written to joins/{uid} in
 // the same batch matches the code for that role.
 function joinBatch(uid, code, joinRole) {

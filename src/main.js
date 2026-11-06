@@ -17,6 +17,7 @@ import * as player from './pages/player.js';
 import * as injuries from './pages/injuries.js';
 import * as awards from './pages/awards.js';
 import * as book from './pages/book.js';
+import * as news from './pages/news.js';
 import * as settings from './pages/settings.js';
 import * as join from './pages/join.js';
 
@@ -37,6 +38,7 @@ const routes = [
   [/^#\/injuries$/, injuries],
   [/^#\/awards$/, awards],
   [/^#\/book$/, book],
+  [/^#\/news$/, news],
   [/^#\/settings$/, settings],
   [/^#\/join$/, join],
 ];
@@ -46,6 +48,7 @@ const TABS = [
   { id: 'games', href: '#/games', label: 'Games', icon: 'calendar' },
   { id: 'players', href: '#/players', label: 'Players', icon: 'players' },
   { id: 'awards', href: '#/awards', label: 'Awards', icon: 'trophy' },
+  { id: 'news', href: '#/news', label: 'News', icon: 'news' },
   { id: 'book', href: '#/book', label: 'Book', icon: 'ticket' },
 ];
 

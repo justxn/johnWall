@@ -12,7 +12,8 @@ import {
 import { db } from './firebase.js';
 import { activeInjuries, gameBets, gameLines, gameStats, state } from './store.js';
 import { voteId } from './awards.js';
-import { voterKey } from './auth.js';
+import { ensureSignIn, myName, myPlayerId, voterKey } from './auth.js';
+import { anonName, cleanComment } from './news.js';
 import { SHOOTING_FIELDS, STAT_KEYS, finalStats } from './stats.js';
 import { autoLines, bettingOpen, lineId, syncLines } from './book.js';
 import { clockToggle, courtToggle, courtUsed, finalMinutes } from './live.js';
@@ -216,6 +217,33 @@ export function placeBet(gameId, bet) {
   return send(setDoc(ref, { gameId, ...bet, placedAt: serverTimestamp() }), 'Bet');
 }
 export const cancelBet = (bet) => send(deleteDoc(doc(db, 'games', bet.gameId, 'bets', bet.id)), 'Cancel');
+
+// --- News comments ------------------------------------------------------------
+
+let lastCommentAt = 0;
+
+// Anyone can comment, joined or not. Returns an error message, or null once sent.
+export async function addComment(itemId, rawText) {
+  const { text, error } = cleanComment(rawText);
+  if (error) return error;
+  if (Date.now() - lastCommentAt < 3000) return 'Slow down a sec';
+  lastCommentAt = Date.now();
+  const uid = (await ensureSignIn()) ?? state.uid ?? null;
+  const ref = doc(collection(db, 'comments'));
+  send(
+    setDoc(ref, {
+      itemId,
+      text,
+      author: myName() || anonName(uid ?? voterKey()),
+      uid,
+      isPlayer: Boolean(myPlayerId()),
+      createdAt: serverTimestamp(),
+    }),
+    'Comment',
+  );
+  return null;
+}
+export const deleteComment = (id) => send(deleteDoc(doc(db, 'comments', id)), 'Delete');
 
 // --- Injuries ---------------------------------------------------------------
 export function saveInjury(id, fields) {
