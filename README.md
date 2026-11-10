@@ -4,13 +4,15 @@ App for our intramural 3v3 basketball team: the schedule, live scorekeeping, box
 
 ## What's in it
 
+Five tabs: Home, Games, Players, News and Book.
+
 - **Home**: next game, season record and streak, team leaders, latest MVP, injury report, recent results.
 - **Games**: upcoming games, live games, results. Add a final score with a box score, or schedule a game.
 - **Live scoring**: one tap per stat for each player: +1 (inside the arc), +2 (behind it), FG miss, 3PT miss, REB, AST, STL, BLK and TO, with each count on its button; the team score adds itself up. Bench/On-court toggles track plus-minus (+/-), and with the game clock, minutes. Undo says what it will take back, and anyone with the link can follow the score live.
-- **Players**: leaderboard for any stat (per game or totals) and for FG% and 3P%, player pages with game log, career highs, awards and injuries, and the injury report. Team members add players with **Add player** at the top.
-- **Awards**: MVP and custom awards, voted on each game's page.
-- **Badges**: 11 badges in the style of NBA 2K (Bucket Getter, Sharpshooter, Dimer, Glass Cleaner and more), each in Bronze, Silver, Gold and Hall of Fame, earned from stats in finished games, so they move with the season. They show on player pages and the Awards tab, and **How to earn** lists what each tier takes. The cutoffs are in `src/badges.js`.
-- **Book**: over/under bets on player props with in-app coins (never real money). Everyone starts with 1,000. Lines come from each player's averages, and team members can move or pull them. Bets pay even money up to 250 a bet, close at tip-off, and settle from the final box score. The Book tab has your coins and bets and a leaderboard of bettors.
+- **Players**: three views. **Stats** is a leaderboard for any stat (per game or totals) and for FG% and 3P%. **Awards** has the MVP and custom award standings (voted on each game's page) and who holds which badge. **Injuries** is the injury report. Player pages have the game log, career highs, badges, awards and injuries. Team members get the view's main button at the top: **Add player**, **New award** or **Report injury**.
+- **Badges**: 11 badges in the style of NBA 2K (Bucket Getter, Sharpshooter, Dimer, Glass Cleaner and more), each in Bronze, Silver, Gold and Hall of Fame, earned from stats in finished games, so they move with the season. They show on player pages and under Players → Awards, and **How to earn** lists what each tier takes. The cutoffs are in `src/badges.js`.
+- **News**: a 2K-style feed written from the games: recaps, top scorers and career nights, all-round nights, milestones, badge unlocks, awards, streaks, injuries and returns, book results, and a preview with the featured prop two days before the next game. A ticker across the top has the latest score, the next game, the record and the leaders. Tap a story for its comments: anyone can comment, joined or not. Comments tagged **Sim** are made up by the app for fun. Nothing in the feed is stored, so it updates itself as games come in (`src/news.js`).
+- **Book**: over/under bets on player props with in-app coins (never real money). Everyone starts with 1,000. Lines come from each player's averages, and team members can move or pull them. Bets pay even money up to 250 a bet, close at tip-off, and settle from the final box score. The Book tab has your balance, the props board for upcoming games (with each player's average and last game), your open and settled bets (live ones show how close they are), and a leaderboard. Like any sportsbook, it carries the problem gambling helpline (1-800-GAMBLER).
 - **Share recap**: makes a game graphic for the group chat or a story.
 
 A stat left blank means "not tracked". It shows as "—" and is left out of averages (not counted as 0).
@@ -77,6 +79,7 @@ The UI is plain JavaScript rendered with [lit-html](https://lit.dev/docs/librari
 - `config/group`: the team and fan codes (team members only). `config/public`: team name.
 - `members/{uid}`: who joined on which device, their role, and their player.
 - `players`, `awardCategories`, `injuries`.
+- `comments`: News comments, each with the id of its story. The stories themselves aren't stored.
 - `games/{id}`: `status` is `scheduled`, `live` or `final` (games from the first version have no status and count as final). Subcollections `stats/{playerId}`, `votes/{voterId}_{categoryId}`, `lines/{playerId}_{stat}` (prop lines) and `bets/{id}`. Coins aren't stored: they're worked out from the bets and box scores.
 
 ## Notes

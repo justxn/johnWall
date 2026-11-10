@@ -14,12 +14,9 @@ export function view() {
   const current = activeInjuries().sort((a, b) => severity(a) - severity(b));
   const past = state.injuries.filter((i) => i.clearedOn).sort((a, b) => b.clearedOn.localeCompare(a.clearedOn));
   return html`
-    ${playersHeader('injuries')}
+    ${playersHeader('injuries', html`<button class="btn sm" @click=${() => openInjurySheet()}>${icon('plus')}Report injury</button>`)}
     <section class="card">
-      <div class="card-head">
-        <h2>Injury report</h2>
-        ${isTeam() ? html`<button class="btn sm" @click=${() => openInjurySheet()}>Report injury</button>` : nothing}
-      </div>
+      <h2>Injury report</h2>
       ${current.length ? current.map((i) => injuryItem(i)) : html`<p class="muted">Nobody's hurt. Everyone's good to go 💪</p>`}
     </section>
     ${past.length ? html`<section class="card"><h2>Recovered</h2>${past.map((i) => injuryItem(i))}</section>` : nothing}`;
@@ -31,7 +28,7 @@ export function injuryItem(injury) {
   const details = healed
     ? [`Was ${injuryLabel(injury.status).toLowerCase()} from ${fmtDate(injury.since)}`, `back ${fmtDate(injury.clearedOn)}`]
     : [`Since ${fmtDate(injury.since)}`, injury.expectedReturn ? `expected back ${fmtDate(injury.expectedReturn)}` : ''];
-  return html`<div class="injury">
+  return html`<div class="item">
     <a class="plain row" href="#/players/${injury.playerId}"><strong>${player?.name ?? 'Unknown'}</strong>${healed ? nothing : injuryPill(injury)}</a>
     ${injury.note ? html`<p>${injury.note}</p>` : nothing}
     <small class="muted">${details.filter(Boolean).join(' · ')}</small>

@@ -6,10 +6,14 @@ import {
   betProblem,
   bettingOpen,
   coinsOf,
+  fmtCoins,
+  fmtNet,
   grade,
   ledger,
+  liveStatus,
   pickLabel,
   syncLines,
+  target,
   winsWith,
 } from '../src/book.js';
 
@@ -148,5 +152,33 @@ describe('placing a bet', () => {
     expect(winsWith({ stat: 'plusMinus', side: 'under', line: -0.5 })).toBe('-1 or worse');
     expect(pickLabel({ stat: 'plusMinus', side: 'over', line: 2.5 })).toBe('Over +2.5 +/-');
     expect(pickLabel({ stat: 'fg3m', side: 'under', line: 1.5 })).toBe('Under 1.5 3PM');
+  });
+});
+
+describe('live bets and display', () => {
+  it('knows the number each side needs', () => {
+    expect(target({ side: 'over', line: 7.5 })).toBe(8);
+    expect(target({ side: 'under', line: 7.5 })).toBe(7);
+    expect(target({ side: 'over', line: 8 })).toBe(9); // 8 itself is a push
+    expect(target({ side: 'under', line: 8 })).toBe(7);
+    expect(target({ side: 'over', line: -0.5 })).toBe(0);
+    expect(target({ side: 'under', line: -0.5 })).toBe(-1);
+  });
+
+  it('tracks a bet against the stat so far', () => {
+    const over = { stat: 'points', side: 'over', line: 7.5 };
+    expect(liveStatus(over, { points: 5 })).toEqual({ value: 5, need: 8, winning: false });
+    expect(liveStatus(over, { points: 8 })).toMatchObject({ winning: true });
+    expect(liveStatus({ ...over, side: 'under' }, { points: 7 })).toMatchObject({ need: 7, winning: true });
+    expect(liveStatus({ ...over, side: 'under' }, { points: 8 })).toMatchObject({ winning: false });
+    expect(liveStatus(over, { points: null })).toBeNull(); // not tracked
+    expect(liveStatus(over, undefined)).toBeNull(); // not in the box score
+  });
+
+  it('formats coins, and ups and downs with their sign', () => {
+    expect(fmtCoins(1250)).toBe((1250).toLocaleString());
+    expect(fmtNet(150)).toBe('+150');
+    expect(fmtNet(-50)).toBe('−50');
+    expect(fmtNet(0)).toBe('0');
   });
 });

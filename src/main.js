@@ -18,6 +18,7 @@ import * as injuries from './pages/injuries.js';
 import * as awards from './pages/awards.js';
 import * as book from './pages/book.js';
 import * as news from './pages/news.js';
+import * as newsStory from './pages/story.js';
 import * as settings from './pages/settings.js';
 import * as join from './pages/join.js';
 
@@ -39,15 +40,17 @@ const routes = [
   [/^#\/awards$/, awards],
   [/^#\/book$/, book],
   [/^#\/news$/, news],
+  [/^#\/news\/([^/]+)$/, newsStory],
   [/^#\/settings$/, settings],
   [/^#\/join$/, join],
 ];
 
+// Five tabs, so the bar fits a phone in one row. Awards and the injury report
+// live under Players (see playersHeader in pages/players.js).
 const TABS = [
   { id: 'home', href: '#/', label: 'Home', icon: 'home' },
   { id: 'games', href: '#/games', label: 'Games', icon: 'calendar' },
   { id: 'players', href: '#/players', label: 'Players', icon: 'players' },
-  { id: 'awards', href: '#/awards', label: 'Awards', icon: 'trophy' },
   { id: 'news', href: '#/news', label: 'News', icon: 'news' },
   { id: 'book', href: '#/book', label: 'Book', icon: 'ticket' },
 ];

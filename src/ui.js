@@ -85,6 +85,8 @@ const PATHS = {
   edit: svg`<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m14 6 4 4"/>`,
   ball: svg`<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18"/><path d="M5.6 5.6c3.4 3.4 3.4 9.4 0 12.8M18.4 5.6c-3.4 3.4-3.4 9.4 0 12.8"/>`,
   live: svg`<circle cx="12" cy="12" r="3" fill="currentColor"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/>`,
+  chat: svg`<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5v-9Z"/>`,
+  info: svg`<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.5v.01"/>`,
 };
 export const icon = (name, cls = '') =>
   html`<svg class="ico ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name]}</svg>`;
@@ -140,5 +142,11 @@ export const segmented = (items, label) => html`<div class="segmented" role="tab
 </div>`;
 
 export const empty = (text, action = nothing) => html`<div class="empty"><p class="muted">${text}</p>${action}</div>`;
+
+// A tab's title, with its main action (if any) on the right.
+export const pageHead = (title, action = nothing) => html`<div class="page-head"><h1>${title}</h1>${action}</div>`;
+
+// A small count bubble, e.g. on a segment: "My bets ②". 'alert' makes it red.
+export const count = (n, cls = '') => (n ? html`<span class="count ${cls}">${n}</span>` : nothing);
 
 export const backLink = (href, label) => html`<a class="back" href=${href}>${icon('back')}<span>${label}</span></a>`;

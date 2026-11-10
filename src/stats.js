@@ -193,6 +193,14 @@ export function gameLog(playerId, stats, games) {
     .sort((a, b) => byDateDesc(a.game, b.game));
 }
 
+// One game's line as text, "8 PTS · 3-5 FG · 1-2 3PT · 2 REB · …", with
+// shooting right after points and untracked stats left out.
+export function lineText(line) {
+  const stat = (k) => (line[k] != null ? [`${fmtStat(line[k], k)} ${STAT_LABELS[k]}`] : []);
+  const shots = SHOOTING.filter((s) => line[s.att] != null).map((s) => `${fmtShots(line[s.made], line[s.att])} ${s.label}`);
+  return [...stat('points'), ...shots, ...STAT_KEYS.filter((k) => k !== 'points').flatMap(stat)].join(' · ');
+}
+
 // Results against one opponent. Names are free text, so they're compared loosely.
 export function headToHead(games, opponent) {
   const key = normName(opponent);

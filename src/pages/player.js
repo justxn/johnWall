@@ -7,15 +7,14 @@ import {
   AVG_LABELS,
   SHOOTING,
   STAT_KEYS,
-  STAT_LABELS,
   STAT_NAMES,
   careerHighs,
   finalStats,
   fmtAvg,
   fmtPct,
-  fmtShots,
   fmtStat,
   gameLog,
+  lineText,
   playerLine,
 } from '../stats.js';
 import { badgeProgress, earnedBadges } from '../badges.js';
@@ -112,13 +111,6 @@ function tiles(line) {
   return html`<div class="tiles">${shown}</div>`;
 }
 
-// "8 PTS · 3-5 FG · 1-2 3PT · 2 REB · …", with shooting right after points.
-function logLine(line) {
-  const stat = (k) => (line[k] != null ? [`${fmtStat(line[k], k)} ${STAT_LABELS[k]}`] : []);
-  const shots = SHOOTING.filter((s) => line[s.att] != null).map((s) => `${fmtShots(line[s.made], line[s.att])} ${s.label}`);
-  return [...stat('points'), ...shots, ...STAT_KEYS.filter((k) => k !== 'points').flatMap(stat)].join(' · ');
-}
-
 function badgesCard(progress) {
   const earned = earnedBadges(progress);
   return html`<section class="card">
@@ -169,7 +161,7 @@ const logCard = (log) =>
               <strong class="ellipsis">vs ${game.opponent}</strong>
               <small class="muted">${game.teamScore}–${game.opponentScore} · ${fmtDate(game.date, { weekday: false })}</small>
             </span>
-            <small class="muted">${logLine(line) || 'No stats tracked'}</small>
+            <small class="muted">${lineText(line) || 'No stats tracked'}</small>
           </a>`)}
         </div>
       </section>`

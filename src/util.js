@@ -45,6 +45,36 @@ export const fmtClock = (ms) => {
 
 export const plural = (n, word, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 
+// "a", "a and b", "a, b and c"
+export const andList = (parts) => (parts.length < 2 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`);
+
+// "Today", "Yesterday", or "Wed, Nov 4".
+export function dayLabel(iso, today = todayISO()) {
+  if (!iso) return '';
+  if (iso === today) return 'Today';
+  const yesterday = parseISO(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  return iso === todayISO(yesterday) ? 'Yesterday' : fmtDate(iso);
+}
+
+// How long ago, short, for comments: "now", "5m", "3h", "2d", then the date.
+export function timeAgo(ms, now = Date.now()) {
+  const s = Math.max(0, (now - ms) / 1000);
+  if (s < 60) return 'now';
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)}d`;
+  return fmtDate(todayISO(new Date(ms)), { weekday: false });
+}
+
+// Time left, roughly: "45 min", "5 hr", "3 days".
+export function timeLeft(ms) {
+  const min = Math.max(1, Math.ceil(ms / 60000));
+  if (min < 60) return `${min} min`;
+  const hr = Math.floor(min / 60);
+  return hr < 48 ? `${hr} hr` : `${Math.floor(hr / 24)} days`;
+}
+
 export const playerName = (players, id) => players.find((p) => p.id === id)?.name ?? 'Unknown';
 
 // Opponent names are free text, so compare them loosely.
