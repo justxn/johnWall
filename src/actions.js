@@ -230,13 +230,16 @@ export async function addComment(itemId, rawText) {
   lastCommentAt = Date.now();
   const uid = (await ensureSignIn()) ?? state.uid ?? null;
   const ref = doc(collection(db, 'comments'));
+  // Players comment as their player; everyone else by their name, or a stable
+  // made-up one.
+  const player = state.players.find((p) => p.id === myPlayerId());
   send(
     setDoc(ref, {
       itemId,
       text,
-      author: myName() || anonName(uid ?? voterKey()),
+      author: (player?.name || myName() || anonName(uid ?? voterKey())).slice(0, 60),
       uid,
-      isPlayer: Boolean(myPlayerId()),
+      isPlayer: Boolean(player),
       createdAt: serverTimestamp(),
     }),
     'Comment',

@@ -13,9 +13,14 @@ export const MIN_GAMES = 2;
 // playing time, not play.
 export const PROP_STATS = ['points', 'fg3m', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'plusMinus'];
 export const PROP_LABELS = { ...STAT_LABELS, fg3m: '3PM' };
-const NOUNS = {
-  points: 'points', fg3m: 'threes', rebounds: 'rebounds', assists: 'assists', steals: 'steals', blocks: 'blocks', turnovers: 'turnovers',
+export const PROP_NOUNS = {
+  points: 'points', fg3m: 'threes', rebounds: 'rebounds', assists: 'assists', steals: 'steals', blocks: 'blocks', turnovers: 'turnovers', plusMinus: 'plus-minus',
 };
+
+// 1250 -> "1,250"
+export const fmtCoins = (n) => Math.round(n).toLocaleString();
+// Up or down, with the sign: "+150", "−50", "0".
+export const fmtNet = (n) => (n > 0 ? `+${fmtCoins(n)}` : n < 0 ? `−${fmtCoins(-n)}` : '0');
 
 export const lineId = (playerId, stat) => `${playerId}_${stat}`;
 
@@ -114,12 +119,24 @@ export function betProblem({ stake, side, playerId }, { available, myPlayerId = 
   return null;
 }
 
+// The number a bet needs: the lowest that wins an over, the highest that wins
+// an under. On a whole-number line, the line itself is a push.
+export const target = ({ side, line }) => (side === 'over' ? Math.floor(line) + 1 : Math.ceil(line) - 1);
+
 // What a bet needs to win, e.g. "8 or more points", "+2 or worse".
-export function winsWith({ stat, side, line }) {
-  const whole = Number.isInteger(line);
-  const n = side === 'over' ? (whole ? line + 1 : Math.ceil(line)) : (whole ? line - 1 : Math.floor(line));
-  if (stat === 'plusMinus') return `${fmtStat(n, 'plusMinus')} or ${side === 'over' ? 'better' : 'worse'}`;
-  return `${n} or ${side === 'over' ? 'more' : 'fewer'} ${NOUNS[stat]}`;
+export function winsWith(bet) {
+  const n = target(bet);
+  if (bet.stat === 'plusMinus') return `${fmtStat(n, 'plusMinus')} or ${bet.side === 'over' ? 'better' : 'worse'}`;
+  return `${n} or ${bet.side === 'over' ? 'more' : 'fewer'} ${PROP_NOUNS[bet.stat]}`;
+}
+
+// How a bet is doing while its game is live: the stat so far and whether
+// that would win right now. Null when the stat isn't being tracked.
+export function liveStatus(bet, statLine) {
+  const value = statLine?.[bet.stat];
+  if (value == null) return null;
+  const need = target(bet);
+  return { value, need, winning: bet.side === 'over' ? value >= need : value <= need };
 }
 
 // "Over 7.5 PTS", with plus-minus lines signed.

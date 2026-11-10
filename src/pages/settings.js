@@ -12,7 +12,7 @@ import {
   updatePlayer,
 } from '../actions.js';
 import { getTheme, setTheme } from '../theme.js';
-import { avatar, icon, rerender, segmented, toast } from '../ui.js';
+import { avatar, icon, pageHead, rerender, segmented, toast } from '../ui.js';
 import { fmtDate, todayISO } from '../util.js';
 
 export const meta = { tab: null };
@@ -27,7 +27,7 @@ export function enter() {
 
 export function view() {
   return html`
-    <h1>Settings</h1>
+    ${pageHead('Settings')}
     ${youCard()}
     ${appearanceCard()}
     ${isTeam() ? html`${teamCard()}${rosterCard()}${usesSignIn() ? membersCard() : nothing}` : nothing}`;
@@ -146,7 +146,7 @@ function rosterCard() {
   return html`<section class="card">
     <h2>Roster</h2>
     <p class="hint">Inactive players drop off the box score form but keep their stats. Only players with no stats can be deleted.</p>
-    ${players.map((p) => html`<div class="injury">
+    ${players.map((p) => html`<div class="item">
       ${renaming === p.id
         ? html`<form class="row" @submit=${(e) => {
             e.preventDefault();

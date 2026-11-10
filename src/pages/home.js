@@ -86,7 +86,7 @@ function recordCard() {
       ${s ? html`<span class="pill ${s.type === 'W' ? 'win' : 'loss'}">${s.type}${s.count} streak</span>` : nothing}
     </div>
     ${avg
-      ? html`<div class="statline" style="grid-column: 1 / -1">
+      ? html`<div class="statline">
           <span><b>${avg.ppg.toFixed(1)}</b> points per game</span>
           <span><b>${avg.oppg.toFixed(1)}</b> allowed</span>
           <span><b>${avg.diff > 0 ? '+' : ''}${avg.diff.toFixed(1)}</b> margin</span>

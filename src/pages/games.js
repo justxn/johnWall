@@ -2,7 +2,7 @@ import { html, nothing } from 'lit-html';
 import { state } from '../store.js';
 import { isTeam } from '../auth.js';
 import { finals, liveGames, needsResult, upcoming } from '../stats.js';
-import { dateBlock, empty, gameRow, icon, livePill } from '../ui.js';
+import { dateBlock, empty, gameRow, icon, livePill, pageHead } from '../ui.js';
 import { fmtDate, fmtTime, todayISO } from '../util.js';
 
 export const meta = { tab: 'games', fab: true };
@@ -35,7 +35,7 @@ export function view() {
   const results = finals(state.games);
 
   return html`
-    <h1>Games</h1>
+    ${pageHead('Games')}
     ${live.length
       ? html`<section class="card flush"><div class="card-head"><h2>Live now</h2></div><ul class="list">${live.map(liveRow)}</ul></section>`
       : nothing}
